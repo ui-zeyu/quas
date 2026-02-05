@@ -1,7 +1,8 @@
 from binascii import crc32
 from pathlib import Path
 
-from quas.crc import PNG_SIGNATURE, bruteforce
+from quas.crc.ihdr import PNG_SIGNATURE
+from quas.crc.zip import bruteforce
 
 DATA_DIR = Path(__file__).parent
 

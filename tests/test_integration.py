@@ -5,7 +5,7 @@ def test_zip_integration():
     """Test ZIP CRC32 bruteforce"""
     from binascii import crc32
 
-    from quas.crc import bruteforce
+    from quas.crc.zip import bruteforce
 
     charset = "0123456789"
     targets = {crc32(b"0001") & 0xFFFFFFFF, crc32(b"0002") & 0xFFFFFFFF}
@@ -23,7 +23,7 @@ def test_ihdr_integration():
     png_file = Path(__file__).parent / "ihdr.png"
     data = png_file.read_bytes()
 
-    from quas.crc import IHDR_CHUNK_TYPE, PNG_SIGNATURE
+    from quas.crc.ihdr import IHDR_CHUNK_TYPE, PNG_SIGNATURE
 
     assert data[:8] == PNG_SIGNATURE
     chunk_length, chunk_type = unpack(">I4s", data[8:16])

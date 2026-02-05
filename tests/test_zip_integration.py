@@ -1,7 +1,7 @@
 import zipfile
 from pathlib import Path
 
-from quas.crc import bruteforce
+from quas.crc.zip import bruteforce
 
 DATA_DIR = Path(__file__).parent
 

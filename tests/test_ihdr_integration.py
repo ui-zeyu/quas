@@ -3,7 +3,7 @@ from struct import pack, unpack
 
 from PIL import Image, UnidentifiedImageError
 
-from quas.crc import IHDR_CHUNK_TYPE, MAX_DIMENSION, PNG_SIGNATURE
+from quas.crc.ihdr import IHDR_CHUNK_TYPE, MAX_DIMENSION, PNG_SIGNATURE
 
 DATA_DIR = Path(__file__).parent
 

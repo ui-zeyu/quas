@@ -1,7 +1,7 @@
 import string
 from binascii import crc32
 
-from quas.crc import _worker, bruteforce
+from quas.crc.zip import _worker, bruteforce
 
 
 def test_worker_small_charset() -> None:
