@@ -11,6 +11,7 @@ from pathlib import Path
 from struct import pack, unpack
 
 import click
+import toolz
 from PIL import Image, UnidentifiedImageError
 from rich.table import Table
 
@@ -36,13 +37,18 @@ def _worker(
     return results
 
 
-def bruteforce(size: int, targets: set[int], charset: bytes) -> dict[int, list[str]]:
-    if size < 4:
+def bruteforce(
+    size: int,
+    targets: set[int],
+    charset: bytes,
+    jobs: int,
+) -> dict[int, list[str]]:
+    if jobs == 1 or size < 4:
         return _worker(b"", size, targets, charset)
 
     results = defaultdict(list)
     worker = partial(_worker, size=size - 1, targets=targets, charset=charset)
-    with ProcessPoolExecutor(os.cpu_count()) as e:
+    with ProcessPoolExecutor(jobs) as e:
         for result in e.map(worker, (bytes([x]) for x in charset)):
             for k, v in result.items():
                 results[k].extend(v)
@@ -62,19 +68,38 @@ def app() -> None: ...
     "--charset",
     type=str,
     default=string.printable.strip(),
-    help="Character set for bruteforce (default: printable ASCII)",
+    help="Character set for bruteforce",
 )
-def zip(ctx: ContextObject, infile: Path, size: int, charset: str) -> None:
+@click.option(
+    "-j",
+    "--jobs",
+    type=int,
+    default=os.cpu_count(),
+    help="Number of jobs to run",
+)
+def zip(ctx: ContextObject, infile: Path, size: int, charset: str, jobs: int) -> None:
     console = ctx["console"]
+
+    charset: bytes = f" {charset} ".encode()
+    alphabet = bytearray()
+    for p, x, n in toolz.sliding_window(3, charset):
+        if x == ord("-") and p < n:
+            alphabet.extend(range(p + 1, n))
+        else:
+            alphabet.append(x)
+    console.print(f"Charset: [bold red]{alphabet.decode()}[/bold red]\n")
+
+    if size > 4:
+        cmd = f"hashcat -O -a 3 -m 11500 --keep-guessing <CRC32>:{'0' * 8 + ' ' + '?a' * size}"
+        console.print(f"For large size try Hashcat:\n [bold cyan]{cmd}[/bold cyan]\n")
 
     with zipfile.ZipFile(infile, "r") as zf:
         crc2file = {f.CRC: f.filename for f in zf.infolist() if f.file_size == size}
-        console.print(f"[bold]Charset:[/bold] {charset}", highlight=False)
+        results = bruteforce(size, set(crc2file.keys()), bytes(alphabet), jobs)
 
-        results = bruteforce(size, set(crc2file.keys()), charset.encode())
         table = Table("File", "CRC32", "Found", box=None, highlight=True)
         for crc, contents in results.items():
-            table.add_row(crc2file[crc], f"0x{crc:08X}", ", ".join(contents))
+            table.add_row(crc2file[crc], f"{crc:08X}", ", ".join(contents))
         console.print(table)
 
 

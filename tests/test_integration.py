@@ -10,7 +10,7 @@ def test_zip_integration():
     charset = "0123456789"
     targets = {crc32(b"0001") & 0xFFFFFFFF, crc32(b"0002") & 0xFFFFFFFF}
 
-    results = bruteforce(4, targets, charset.encode())
+    results = bruteforce(4, targets, charset.encode(), jobs=1)
 
     assert len(results) == 2
 

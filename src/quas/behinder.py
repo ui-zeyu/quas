@@ -67,7 +67,7 @@ def app() -> None: ...
     "--mode",
     type=click.Choice(Mode, case_sensitive=False),
     default=Mode.ECB,
-    help="AES mode (ECB or CBC, default: ECB)",
+    help="AES mode (ECB or CBC)",
 )
 def aes(ctx: ContextObject, ciphertext: str | None, wordlist: Path, mode: Mode) -> None:
     console = ctx["console"]

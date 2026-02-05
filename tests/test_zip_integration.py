@@ -33,7 +33,7 @@ def test_zip_4crc_bruteforce() -> None:
     targets = {crc32(b"0001") & 0xFFFFFFFF, crc32(b"0002") & 0xFFFFFFFF}
     charset = b"0123456789"
 
-    results = bruteforce(4, targets, charset)
+    results = bruteforce(4, targets, charset, jobs=1)
 
     assert len(results) == 2
     for _crc, filenames in results.items():
@@ -48,7 +48,7 @@ def test_zip_4crc_specific_crc() -> None:
     charset = b"0123456789"
     target_crc = crc32(b"1234") & 0xFFFFFFFF
 
-    results = bruteforce(4, {target_crc}, charset)
+    results = bruteforce(4, {target_crc}, charset, jobs=1)
 
     assert target_crc in results
     assert len(results[target_crc]) >= 1
