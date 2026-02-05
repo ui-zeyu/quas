@@ -1,0 +1,39 @@
+[project]
+name = "quas"
+version = "0.1.0"
+description = "Steganography and cryptanalysis CLI toolkit"
+readme = "README.md"
+authors = [
+    { name = "yuyy", email = "ui.zeyu@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "click>=8.3.1",
+    "numpy>=2.4.2",
+    "pillow>=12.1.0",
+    "pycryptodomex>=3.23.0",
+    "pymupdf>=1.26.7",
+    "python-magic>=0.4.27",
+    "rich>=14.3.2",
+]
+
+[project.scripts]
+quas = "quas:main"
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+ignore = ["E501"]
+select = ["E", "F", "UP", "B", "SIM", "I"]
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.18.0",
+    "pytest>=9.0.2",
+    "ruff>=0.14.14",
+]

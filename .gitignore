@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.python-version
+
+# Cache directories
+.pytest_cache/
+.ruff_cache/
+
+# System files
+.DS_Store
+
+# Development files
+AGENTS.md
+uv.lock
+*.spec
