@@ -74,12 +74,10 @@ class HillClimber:
     def __init__(
         self,
         quadgram: EnglishUpper,
-        iterations: int = 5000,
         restarts: int = 5,
         seed: int | None = None,
     ) -> None:
         self.quadgram = quadgram
-        self.iterations = iterations
         self.restarts = restarts
         self.rng = np.random.default_rng(seed)
 
@@ -92,16 +90,29 @@ class HillClimber:
         plaintext = cipher.decrypt(ciphertext)
         best_score = self.quadgram.score_indics(plaintext)
 
-        for _ in range(self.iterations):
-            best_key = cipher.key
-            x, y = self.rng.choice(range(len(key)), 2, replace=False)
-            best_key.swap(x, y)
-            plaintext = cipher.decrypt(ciphertext)
-            score = self.quadgram.score_indics(plaintext)
-            if score > best_score:
-                best_score = score
-            else:
-                best_key.swap(x, y)
+        swap_indices = np.triu_indices(len(key), k=1)
+
+        while True:
+            best_score_in_pass = best_score
+            best_swap = None
+
+            for i, j in zip(swap_indices[0], swap_indices[1], strict=True):
+                cipher.key.swap(i, j)
+                plaintext = cipher.decrypt(ciphertext)
+                score = self.quadgram.score_indics(plaintext)
+
+                if score > best_score_in_pass:
+                    best_score_in_pass = score
+                    best_swap = (int(i), int(j))
+
+                cipher.key.swap(i, j)
+
+            if best_swap is None:
+                break
+
+            best_score = best_score_in_pass
+            cipher.key.swap(best_swap[0], best_swap[1])
+
         return Result(cipher.key, best_score)
 
     def crack(
@@ -119,7 +130,6 @@ class HillClimber:
 
 @click.command()
 @click.pass_obj
-@click.option("-i", "--iterations", type=int, default=3000)
 @click.option("-r", "--restarts", type=int, default=10)
 @click.option("-t", "--top", type=int, default=3)
 @click.option("-c", "--calphabet", type=str, default=string.ascii_uppercase)
@@ -128,7 +138,6 @@ def crack(
     ctx: ContextObject,
     ciphertext: str | None,
     calphabet: str,
-    iterations: int,
     restarts: int,
     top: int,
 ) -> None:
@@ -141,7 +150,7 @@ def crack(
     ciphertext = ciphertext if ciphertext else stdin.read()
     cindics = np.array(calphabet.encode(ciphertext), dtype=np.uint8)
 
-    climber = HillClimber(english_upper, iterations, restarts)
+    climber = HillClimber(english_upper, restarts)
     results = climber.crack(key, cindics, top)
 
     table = Table("Key", "Plaintext", "Score", box=None, highlight=True)
