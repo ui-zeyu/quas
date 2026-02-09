@@ -1,6 +1,6 @@
 [project]
 name = "quas"
-version = "0.5.0"
+version = "0.5.1"
 description = "Steganography and cryptanalysis CLI toolkit"
 readme = "README.md"
 authors = [

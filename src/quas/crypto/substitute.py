@@ -60,12 +60,12 @@ class SubstitutionCipher:
         calphabet: Alphabet,
         palphabet: Alphabet,
     ) -> str:
-        plaintext = ""
+        plaintext = []
         for c in ciphertext:
             x = calphabet.encode_letter(c)
             cc = palphabet.decode_letter(self.key[x]) if x is not None else c
-            plaintext += cc
-        return plaintext
+            plaintext.append(cc)
+        return "".join(plaintext)
 
 
 class HillClimber:

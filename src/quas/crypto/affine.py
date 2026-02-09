@@ -63,7 +63,7 @@ class AffineCipher:
         return tuple(self.decrypt_letter(x) for x in ciphertext)
 
     def decrypt_str(self, ciphertext: str) -> str:
-        plaintext = ""
+        plaintext = []
         for c in ciphertext:
             x = self.ALPHABET.encode_letter(c)
             cc = (
@@ -71,8 +71,8 @@ class AffineCipher:
                 if x is not None
                 else c
             )
-            plaintext += cc
-        return plaintext
+            plaintext.append(cc)
+        return "".join(plaintext)
 
 
 @click.command(help="Bruteforce affine cipher with N-gram scoring")
