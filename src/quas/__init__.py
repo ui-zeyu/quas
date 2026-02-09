@@ -6,7 +6,12 @@ from rich.logging import RichHandler
 from rich.traceback import install
 
 from quas import behinder, crc, crypto, img, pdf, steg, util
-from quas.base import CONTEXT_SETTINGS, ContextObject
+from quas.context import ContextObject
+
+CONTEXT_SETTINGS = dict(
+    help_option_names=["-h", "--help"],
+    show_default=True,
+)
 
 
 @click.group(

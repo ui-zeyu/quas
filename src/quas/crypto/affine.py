@@ -1,49 +1,59 @@
-import dataclasses
-import string
+import heapq
+from collections.abc import Generator
 from sys import stdin
+from typing import NamedTuple
 
 import click
 from rich.table import Table
 
-from quas.base import ContextObject
-from quas.crypto.quadgram import quadgram
-
-MOD = 26
-ALPHABET = string.ascii_uppercase
-MOD_INVERSES = {
-    1: 1,
-    3: 9,
-    5: 21,
-    7: 15,
-    9: 3,
-    11: 19,
-    15: 7,
-    17: 23,
-    19: 11,
-    21: 5,
-    23: 17,
-    25: 25,
-}
+from quas.context import ContextObject
+from quas.crypto.alphabet import english_upper as palphabet
+from quas.crypto.quadgram import english_upper
 
 
-@dataclasses.dataclass
-class Result:
+class Result(NamedTuple):
     a: int
     b: int
     plaintext: str
     score: float
 
 
-def decrypt(ciphertext: str, a_inv: int, b: int) -> str:
-    plaintext = ""
-    for c in ciphertext:
-        if c.isalpha():
-            x = ALPHABET.index(c)
-            y = (a_inv * (x - b)) % MOD
-            plaintext += ALPHABET[y]
+class AffineCipher:
+    MOD = 26
+    ALPHABET = palphabet
+    MOD_INVERSES = {
+        1: 1,
+        3: 9,
+        5: 21,
+        7: 15,
+        9: 3,
+        11: 19,
+        15: 7,
+        17: 23,
+        19: 11,
+        21: 5,
+        23: 17,
+        25: 25,
+    }
+
+    def decrypt_letter(self, c: str, a_inv: int, b: int) -> str:
+        if x := self.ALPHABET.encode_letter(c):
+            y = (a_inv * (x - b)) % self.MOD
+            return self.ALPHABET.decode_letter(y)
         else:
-            plaintext += c
-    return plaintext
+            return c
+
+    def decrypt(self, ciphertext: str, a_inv: int, b: int) -> str:
+        return "".join(self.decrypt_letter(x, a_inv, b) for x in ciphertext)
+
+    def bruteforce(self, ciphertext: str) -> Generator[Result]:
+        ciphertext = ciphertext.strip().upper()
+        for a in self.MOD_INVERSES:
+            a_inv = self.MOD_INVERSES[a]
+            for b in range(self.MOD):
+                plaintext = self.decrypt(ciphertext, a_inv, b)
+                score = english_upper.score(plaintext)
+                yield Result(a, b, plaintext, score)
 
 
 @click.command(help="Bruteforce affine cipher with N-gram scoring")
@@ -54,18 +64,10 @@ def bruteforce(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     console = ctx["console"]
 
     ciphertext = ciphertext if ciphertext else stdin.read()
-    ciphertext = ciphertext.strip().upper()
-
-    results = []
-    for a in MOD_INVERSES:
-        a_inv = MOD_INVERSES[a]
-        for b in range(MOD):
-            plaintext = decrypt(ciphertext, a_inv, b)
-            score = quadgram.score(plaintext)
-            results.append(Result(a, b, plaintext, score))
-    results.sort(key=lambda x: x.score, reverse=True)
+    cipher = AffineCipher()
+    results = cipher.bruteforce(ciphertext)
 
     table = Table("a", "b", "Plaintext", "Score", box=None, highlight=True)
-    for x in results[:top]:
+    for x in heapq.nlargest(top, results, lambda x: x.score):
         table.add_row(str(x.a), str(x.b), x.plaintext, f"{x.score}")
     console.print(table)

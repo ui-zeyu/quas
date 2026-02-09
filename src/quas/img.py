@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 from rich.table import Table
 
-from quas.base import ContextObject
+from quas.context import ContextObject
 
 
 @click.group()

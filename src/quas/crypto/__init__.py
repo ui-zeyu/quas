@@ -1,10 +1,11 @@
 import click
 
-from quas.crypto import affine
+from quas.crypto import affine, substitute
 
 
 @click.group()
 def app() -> None: ...
 
 
-app.add_command(affine.bruteforce, affine.__name__.rsplit(".", 1)[-1])
+app.add_command(affine.bruteforce, "affine")
+app.add_command(substitute.crack, "sub")

@@ -5,7 +5,7 @@ import magic
 import pymupdf
 from rich.panel import Panel
 
-from quas.base import ContextObject
+from quas.context import ContextObject
 
 MAX_CONTENT_LENGTH = 1000
 

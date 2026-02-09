@@ -5,7 +5,7 @@ from pathlib import Path
 
 import click
 
-from quas.base import ContextObject
+from quas.context import ContextObject
 
 TABLE_BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 TABLE_BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"

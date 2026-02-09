@@ -1,7 +1,7 @@
 from click.testing import CliRunner
+from quas.base import ContextObject
 from rich.console import Console
 
-from quas.base import ContextObject
 from quas.crypto.affine import (
     MOD,
     MOD_INVERSES,
@@ -10,7 +10,7 @@ from quas.crypto.affine import (
 from quas.crypto.affine import (
     bruteforce as affine_command,
 )
-from quas.crypto.quadgram import Quadgram, quadgram
+from quas.crypto.quadgram import Quadgram, english_upper
 
 
 def test_mod_inverses():
@@ -30,23 +30,23 @@ def test_mod_inverses():
 
 
 def test_load_quadgrams():
-    assert isinstance(quadgram, Quadgram)
-    assert isinstance(quadgram._scores, dict)
-    assert len(quadgram._scores) > 0
-    assert isinstance(quadgram._floor, float)
-    assert quadgram._floor < 0
+    assert isinstance(english_upper, Quadgram)
+    assert isinstance(english_upper.chars_to_score, dict)
+    assert len(english_upper.chars_to_score) > 0
+    assert isinstance(english_upper.floor, float)
+    assert english_upper.floor < 0
 
 
 def test_score_quadgrams_english():
     text = "thequickbrownfoxjumpsoverthelazydog"
-    score = quadgram.score(text)
+    score = english_upper.score(text)
     assert isinstance(score, float)
     assert score < 0
 
 
 def test_score_quadgrams_random():
     text = "xyzqkdlfmnvbcrpugzwyhs"
-    score = quadgram.score(text)
+    score = english_upper.score(text)
     assert isinstance(score, float)
     assert score < 0
 

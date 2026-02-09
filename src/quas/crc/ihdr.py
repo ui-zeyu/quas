@@ -6,7 +6,7 @@ from struct import pack, unpack
 import click
 from PIL import Image, UnidentifiedImageError
 
-from quas.base import ContextObject
+from quas.context import ContextObject
 
 PNG_SIGNATURE = b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"
 IHDR_CHUNK_TYPE = b"IHDR"

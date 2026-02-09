@@ -10,7 +10,7 @@ import click
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
 
-from quas.base import ContextObject
+from quas.context import ContextObject
 
 IV = b"\x00" * AES.block_size
 MAX_PLAINTEXT_DISPLAY = 60

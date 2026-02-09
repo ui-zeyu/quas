@@ -12,7 +12,7 @@ import click
 import toolz
 from rich.table import Table
 
-from quas.base import ContextObject
+from quas.context import ContextObject
 
 
 def _worker(
