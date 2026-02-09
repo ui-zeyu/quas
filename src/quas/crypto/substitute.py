@@ -1,7 +1,7 @@
 import heapq
 import string
 from collections import UserList
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from random import Random
 from sys import stdin
 from typing import NamedTuple, Self
@@ -20,11 +20,20 @@ class Result(NamedTuple):
     key: Key
     score: float
 
+    def __hash__(self):
+        return hash(self.key)
+
+    def __eq__(self, other):
+        return self.key == other.key
+
 
 class Key(UserList):
     @classmethod
     def from_palphabet(cls, palphabet: Alphabet) -> Self:
         return cls(palphabet.encoding.values())
+
+    def __hash__(self):
+        return hash(tuple(self.data))
 
     def swap(self, x: int, y: int) -> None:
         self.data[x], self.data[y] = self.data[y], self.data[x]
@@ -53,10 +62,8 @@ class SubstitutionCipher:
     ) -> str:
         plaintext = ""
         for c in ciphertext:
-            if x := calphabet.encode_letter(c):
-                cc = palphabet.decode_letter(self.key[x])
-            else:
-                cc = c
+            x = calphabet.encode_letter(c)
+            cc = palphabet.decode_letter(self.key[x]) if x is not None else c
             plaintext += cc
         return plaintext
 
@@ -99,19 +106,28 @@ class HillClimber:
                 break
         return Result(cipher.key, best_score)
 
-    def crack(self, key: Key, ciphertext: tuple[int, ...], top: int) -> list[Result]:
-        results: list[Result] = []
+    def crack(self, key: Key, ciphertext: tuple[int, ...]) -> Generator[Result]:
         for _ in range(self.restarts):
-            result = self.climb(key, ciphertext)
-            results.append(result)
-        return heapq.nlargest(top, results, key=lambda x: x.score)
+            yield self.climb(key, ciphertext)
 
 
-@click.command()
+@click.command(help="Crack substitution cipher using hill climbing with N-gram scoring")
 @click.pass_obj
-@click.option("-c", "--calphabet", type=str, default=string.ascii_uppercase)
-@click.option("-r", "--restarts", type=int, default=100)
-@click.option("-t", "--top", type=int, default=3)
+@click.option(
+    "-c",
+    "--calphabet",
+    type=str,
+    default=string.ascii_uppercase,
+    help="Cipher alphabet (default: A-Z)",
+)
+@click.option(
+    "-r",
+    "--restarts",
+    type=int,
+    default=100,
+    help="Number of hill climbing restarts",
+)
+@click.option("-t", "--top", type=int, default=3, help="Show top N results")
 @click.argument("ciphertext", type=str, required=False)
 def crack(
     ctx: ContextObject,
@@ -130,11 +146,11 @@ def crack(
     cindics = calphabet.encode(ciphertext)
 
     climber = HillClimber(english_upper, restarts)
-    results = climber.crack(key, cindics, top)
+    results = climber.crack(key, cindics)
 
-    table = Table("Key", "Plaintext", "Score", box=None, highlight=True)
-    for key, score in results:
+    table = Table("Key", "Plaintext", "Score", box=None)
+    for key, score in heapq.nlargest(top, set(results), lambda x: x.score):
         cipher = SubstitutionCipher(key)
         plaintext = cipher.decrypt_str(ciphertext, calphabet, palphabet)
-        table.add_row(str(key), plaintext, str(score))
+        table.add_row(palphabet.decode(key), plaintext, str(score))
     console.print(table)

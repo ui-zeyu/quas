@@ -65,7 +65,7 @@ class EnglishUpper(Quadgram):
     @override
     def score(self, chars: str) -> float:
         indics = self.ALPHABET.encode(chars)
-        indics = np.array(indics, dtype=np.uint8)
+        indics = np.array(indics, dtype=np.uint32)
         return self.score_indics(indics)
 
 

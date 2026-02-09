@@ -3,9 +3,8 @@ from rich.console import Console
 
 from quas.context import ContextObject
 from quas.crypto.affine import (
-    MOD,
-    MOD_INVERSES,
-    decrypt,
+    AffineCipher,
+    Key,
 )
 from quas.crypto.affine import (
     bruteforce as affine_command,
@@ -14,19 +13,19 @@ from quas.crypto.quadgram import Quadgram, english_upper
 
 
 def test_mod_inverses():
-    assert MOD == 26
-    assert MOD_INVERSES[1] == 1
-    assert MOD_INVERSES[3] == 9
-    assert MOD_INVERSES[5] == 21
-    assert MOD_INVERSES[7] == 15
-    assert MOD_INVERSES[9] == 3
-    assert MOD_INVERSES[11] == 19
-    assert MOD_INVERSES[15] == 7
-    assert MOD_INVERSES[17] == 23
-    assert MOD_INVERSES[19] == 11
-    assert MOD_INVERSES[21] == 5
-    assert MOD_INVERSES[23] == 17
-    assert MOD_INVERSES[25] == 25
+    assert AffineCipher.MOD == 26
+    assert AffineCipher.MOD_INVERSES[1] == 1
+    assert AffineCipher.MOD_INVERSES[3] == 9
+    assert AffineCipher.MOD_INVERSES[5] == 21
+    assert AffineCipher.MOD_INVERSES[7] == 15
+    assert AffineCipher.MOD_INVERSES[9] == 3
+    assert AffineCipher.MOD_INVERSES[11] == 19
+    assert AffineCipher.MOD_INVERSES[15] == 7
+    assert AffineCipher.MOD_INVERSES[17] == 23
+    assert AffineCipher.MOD_INVERSES[19] == 11
+    assert AffineCipher.MOD_INVERSES[21] == 5
+    assert AffineCipher.MOD_INVERSES[23] == 17
+    assert AffineCipher.MOD_INVERSES[25] == 25
 
 
 def test_load_quadgrams():
@@ -38,14 +37,14 @@ def test_load_quadgrams():
 
 
 def test_score_quadgrams_english():
-    text = "thequickbrownfoxjumpsoverthelazydog"
+    text = "THEQUICKBROWNFOXJUMPSOVERTHELAZYDOG"
     score = english_upper.score(text)
     assert isinstance(score, float)
     assert score < 0
 
 
 def test_score_quadgrams_random():
-    text = "xyzqkdlfmnvbcrpugzwyhs"
+    text = "XYZQKDLFMNVBCRPUGZWYHS"
     score = english_upper.score(text)
     assert isinstance(score, float)
     assert score < 0
@@ -53,17 +52,19 @@ def test_score_quadgrams_random():
 
 def test_decrypt_affine_identity():
     ciphertext = "HELLO"
-    a_inv = 1
+    a = 1
     b = 0
-    plaintext = decrypt(ciphertext, a_inv, b)
+    cipher = AffineCipher(Key(a, b))
+    plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == ciphertext
 
 
 def test_decrypt_affine_shift():
     ciphertext = "KHOOR"
-    a_inv = 1
+    a = 1
     b = 3
-    plaintext = decrypt(ciphertext, a_inv, b)
+    cipher = AffineCipher(Key(a, b))
+    plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO"
 
 
@@ -88,9 +89,10 @@ def test_affine_command_with_top():
 
 def test_affine_command_preserves_non_alpha():
     ciphertext = "HELLO, WORLD!"
-    a_inv = 1
+    a = 1
     b = 0
-    plaintext = decrypt(ciphertext, a_inv, b)
+    cipher = AffineCipher(Key(a, b))
+    plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == ciphertext
     assert "," in plaintext
     assert " " in plaintext
@@ -99,7 +101,8 @@ def test_affine_command_preserves_non_alpha():
 
 def test_affine_command_case_insensitive():
     ciphertext = "HELLO"
-    a_inv = 1
+    a = 1
     b = 0
-    plaintext = decrypt(ciphertext, a_inv, b)
+    cipher = AffineCipher(Key(a, b))
+    plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO"

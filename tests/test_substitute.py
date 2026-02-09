@@ -122,12 +122,11 @@ def test_hill_climber_crack():
     cindics = np.array(calphabet.encode(ciphertext), dtype=np.uint8)
 
     climber = HillClimber(english_upper, restarts=2, seed=42)
-    results = climber.crack(key, cindics, top=5)
+    results = list(climber.crack(key, cindics))
 
-    assert len(results) <= 5
+    assert len(results) == 2
     assert all(isinstance(r, Result) for r in results)
     assert all(isinstance(r.key, Key) for r in results)
-    assert results[0].score >= results[-1].score
 
 
 def test_substitute_command():
