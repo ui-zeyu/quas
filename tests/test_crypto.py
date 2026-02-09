@@ -1,7 +1,7 @@
 from click.testing import CliRunner
-from quas.base import ContextObject
 from rich.console import Console
 
+from quas.context import ContextObject
 from quas.crypto.affine import (
     MOD,
     MOD_INVERSES,

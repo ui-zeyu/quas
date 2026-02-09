@@ -22,31 +22,33 @@ from quas.crypto.substitute import (
 def test_key_from_palphabet():
     key = Key.from_palphabet(palphabet)
     assert len(key) == 26
-    assert key.mapping.dtype == np.uint8
+    assert all(isinstance(x, int) for x in key.data)
 
 
 def test_key_shuffle():
-    key1 = Key.from_palphabet(palphabet)
-    key2 = key1.shuffle(np.random.default_rng(42))
-    key3 = key1.shuffle(np.random.default_rng(42))
-    key4 = key1.shuffle(np.random.default_rng(43))
+    from random import Random
 
-    assert not np.array_equal(key1.mapping, key2.mapping)
-    assert np.array_equal(key2.mapping, key3.mapping)
-    assert not np.array_equal(key2.mapping, key4.mapping)
+    key1 = Key.from_palphabet(palphabet)
+    key2 = key1.shuffle(Random(42))
+    key3 = key1.shuffle(Random(42))
+    key4 = key1.shuffle(Random(43))
+
+    assert not np.array_equal(key1.data, key2.data)
+    assert np.array_equal(key2.data, key3.data)
+    assert not np.array_equal(key2.data, key4.data)
 
 
 def test_key_swap():
     key = Key.from_palphabet(palphabet)
-    original_mapping = key.mapping.copy()
+    original_mapping = key.data.copy()
 
     key.swap(0, 1)
-    assert key.mapping[0] == original_mapping[1]
-    assert key.mapping[1] == original_mapping[0]
-    assert np.array_equal(key.mapping[2:], original_mapping[2:])
+    assert key.data[0] == original_mapping[1]
+    assert key.data[1] == original_mapping[0]
+    assert np.array_equal(key.data[2:], original_mapping[2:])
 
     key.swap(0, 1)
-    assert np.array_equal(key.mapping, original_mapping)
+    assert np.array_equal(key.data, original_mapping)
 
 
 def test_substitution_cipher_identity():
@@ -108,7 +110,7 @@ def test_hill_climber_with_seed():
     climber2 = HillClimber(english_upper, restarts=3, seed=42)
     result2 = climber2.climb(key, cindics)
 
-    assert np.array_equal(result1.key.mapping, result2.key.mapping)
+    assert np.array_equal(result1.key.data, result2.key.data)
     assert result1.score == result2.score
 
 

@@ -1,12 +1,13 @@
 import heapq
 import string
+from collections import UserList
 from collections.abc import Iterable
+from random import Random
 from sys import stdin
 from typing import NamedTuple, Self
 
 import click
 import numpy as np
-from numpy.random import Generator
 from rich.table import Table
 
 from quas.context import ContextObject
@@ -20,25 +21,18 @@ class Result(NamedTuple):
     score: float
 
 
-class Key:
+class Key(UserList):
     @classmethod
     def from_palphabet(cls, palphabet: Alphabet) -> Self:
-        mapping = np.array(tuple(palphabet.encoding.values()), dtype=np.uint8)
-        return cls(mapping)
-
-    def __init__(self, mapping: np.ndarray[tuple[int], np.dtype[np.uint8]]) -> None:
-        self.mapping: np.ndarray[tuple[int], np.dtype[np.uint8]] = mapping
-
-    def __len__(self) -> int:
-        return len(self.mapping)
+        return cls(palphabet.encoding.values())
 
     def swap(self, x: int, y: int) -> None:
-        self.mapping[x], self.mapping[y] = self.mapping[y], self.mapping[x]
+        self.data[x], self.data[y] = self.data[y], self.data[x]
 
-    def shuffle(self, rng: Generator) -> Key:
-        mapping = self.mapping.copy()
-        rng.shuffle(mapping)
-        return Key(mapping)
+    def shuffle(self, rng: Random) -> Key:
+        key = self.copy()
+        rng.shuffle(key)
+        return Key(key)
 
 
 class SubstitutionCipher:
@@ -46,13 +40,10 @@ class SubstitutionCipher:
         self.key: Key = key
 
     def encrypt(self, plaintext: Iterable[int]) -> tuple[int, ...]:
-        return tuple(map(lambda x: np.where(self.key.mapping == x)[0][0], plaintext))
+        return tuple(map(self.key.index, plaintext))
 
-    def decrypt(
-        self,
-        ciphertext: np.ndarray[tuple[int], np.dtype[np.uint8]],
-    ) -> np.ndarray[tuple[int], np.dtype[np.uint8]]:
-        return self.key.mapping[ciphertext]
+    def decrypt(self, ciphertext: tuple[int, ...]) -> tuple[int, ...]:
+        return tuple(map(lambda x: self.key[x], ciphertext))
 
     def decrypt_str(
         self,
@@ -63,7 +54,7 @@ class SubstitutionCipher:
         plaintext = ""
         for c in ciphertext:
             if x := calphabet.encode_letter(c):
-                cc = palphabet.decode_letter(self.key.mapping[x])
+                cc = palphabet.decode_letter(self.key[x])
             else:
                 cc = c
             plaintext += cc
@@ -79,48 +70,36 @@ class HillClimber:
     ) -> None:
         self.quadgram = quadgram
         self.restarts = restarts
-        self.rng = np.random.default_rng(seed)
+        self.rng = Random(seed)
 
-    def climb(
-        self,
-        key: Key,
-        ciphertext: np.ndarray[tuple[int], np.dtype[np.uint8]],
-    ) -> Result:
+    def climb(self, key: Key, ciphertext: tuple[int, ...]) -> Result:
         cipher = SubstitutionCipher(key.shuffle(self.rng))
-        plaintext = cipher.decrypt(ciphertext)
+        plaintext = np.array(cipher.decrypt(ciphertext), dtype=np.uint32)
         best_score = self.quadgram.score_indics(plaintext)
 
-        swap_indices = np.triu_indices(len(key), k=1)
-
+        swaps = np.triu_indices(len(key), k=1)
         while True:
-            best_score_in_pass = best_score
-            best_swap = None
-
-            for i, j in zip(swap_indices[0], swap_indices[1], strict=True):
+            better = False
+            for i, j in zip(*swaps, strict=True):
+                mask_i, mask_j = (
+                    plaintext == cipher.key[i],
+                    plaintext == cipher.key[j],
+                )
+                plaintext[mask_i], plaintext[mask_j] = cipher.key[j], cipher.key[i]
                 cipher.key.swap(i, j)
-                plaintext = cipher.decrypt(ciphertext)
+
                 score = self.quadgram.score_indics(plaintext)
-
-                if score > best_score_in_pass:
-                    best_score_in_pass = score
-                    best_swap = (int(i), int(j))
-
-                cipher.key.swap(i, j)
-
-            if best_swap is None:
+                if score > best_score:
+                    best_score = score
+                    better = True
+                else:
+                    cipher.key.swap(i, j)
+                    plaintext[mask_i], plaintext[mask_j] = cipher.key[i], cipher.key[j]
+            if not better:
                 break
-
-            best_score = best_score_in_pass
-            cipher.key.swap(best_swap[0], best_swap[1])
-
         return Result(cipher.key, best_score)
 
-    def crack(
-        self,
-        key: Key,
-        ciphertext: np.ndarray[tuple[int], np.dtype[np.uint8]],
-        top: int = 10,
-    ) -> list[Result]:
+    def crack(self, key: Key, ciphertext: tuple[int, ...], top: int) -> list[Result]:
         results: list[Result] = []
         for _ in range(self.restarts):
             result = self.climb(key, ciphertext)
@@ -130,16 +109,16 @@ class HillClimber:
 
 @click.command()
 @click.pass_obj
-@click.option("-r", "--restarts", type=int, default=10)
-@click.option("-t", "--top", type=int, default=3)
 @click.option("-c", "--calphabet", type=str, default=string.ascii_uppercase)
+@click.option("-r", "--restarts", type=int, default=100)
+@click.option("-t", "--top", type=int, default=3)
 @click.argument("ciphertext", type=str, required=False)
 def crack(
     ctx: ContextObject,
-    ciphertext: str | None,
     calphabet: str,
     restarts: int,
     top: int,
+    ciphertext: str | None,
 ) -> None:
     console = ctx["console"]
 
@@ -148,7 +127,7 @@ def crack(
     key = Key.from_palphabet(palphabet)
 
     ciphertext = ciphertext if ciphertext else stdin.read()
-    cindics = np.array(calphabet.encode(ciphertext), dtype=np.uint8)
+    cindics = calphabet.encode(ciphertext)
 
     climber = HillClimber(english_upper, restarts)
     results = climber.crack(key, cindics, top)

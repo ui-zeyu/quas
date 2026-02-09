@@ -38,21 +38,29 @@ class Quadgram(ABC):
 
 class EnglishUpper(Quadgram):
     ALPHABET = palphabet
-    MULTIPLIERS = np.array([1, 26, 676, 17576], dtype=np.uint32)
 
     def __init__(self, filepath: Path) -> None:
         super().__init__(filepath)
 
-        self.indics_to_scores = np.full(26**4, self.floor, dtype=np.float32)
+        self.indics_to_scores = np.full(2**20, self.floor, dtype=np.float32)
         for key, score in self.chars_to_score.items():
             indics = cast(tuple[int, int, int, int], self.ALPHABET.encode(key))
-            idx = indics @ self.MULTIPLIERS
+            idx = (
+                (indics[0] << 0)
+                | (indics[1] << 5)
+                | (indics[2] << 10)
+                | (indics[3] << 15)
+            )
             self.indics_to_scores[idx] = score
 
-    def score_indics(self, indics: np.ndarray[tuple[int], np.dtype[np.uint8]]) -> float:
-        windows = np.lib.stride_tricks.sliding_window_view(indics, 4)
-        indices = windows @ self.MULTIPLIERS
-        return float(np.sum(self.indics_to_scores[indices]))
+    def score_indics(
+        self,
+        indics: np.ndarray[tuple[int], np.dtype[np.uint32]],
+    ) -> float:
+        indices = (
+            indics[:-3] | indics[1:-2] << 5 | indics[2:-1] << 10 | indics[3:] << 15
+        )
+        return float(np.add.reduce(self.indics_to_scores[indices]))
 
     @override
     def score(self, chars: str) -> float:
