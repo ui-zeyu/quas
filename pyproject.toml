@@ -1,6 +1,6 @@
 [project]
 name = "quas"
-version = "0.5.1"
+version = "0.6.0"
 description = "Steganography and cryptanalysis CLI toolkit"
 readme = "README.md"
 authors = [
@@ -10,6 +10,7 @@ requires-python = ">=3.14"
 dependencies = [
     "click>=8.3.1",
     "gmpy2>=2.2.2",
+    "matplotlib>=3.10.8",
     "numpy>=2.4.2",
     "pillow>=12.1.0",
     "pycryptodomex>=3.23.0",
