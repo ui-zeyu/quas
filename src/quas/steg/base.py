@@ -11,10 +11,6 @@ TABLE_BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 TABLE_BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 
-@click.group()
-def app() -> None: ...
-
-
 def basex(table: str) -> click.Command:
     @click.command(
         help=f"Extract hidden data from {table == TABLE_BASE32 and 'Base32' or 'Base64'} encoded strings",
@@ -45,7 +41,3 @@ def basex(table: str) -> click.Command:
         console.print(steg)
 
     return inner
-
-
-for cmd, table in (("b32", TABLE_BASE32), ("b64", TABLE_BASE64)):
-    app.add_command(basex(table), cmd)

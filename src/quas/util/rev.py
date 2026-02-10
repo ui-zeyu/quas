@@ -6,11 +6,7 @@ import click
 from quas.context import ContextObject
 
 
-@click.group()
-def app() -> None: ...
-
-
-@app.command(help="Reverse bytes of a file")
+@click.command(help="Reverse bytes of a file")
 @click.pass_obj
 @click.argument("infile", type=Path)
 @click.argument(

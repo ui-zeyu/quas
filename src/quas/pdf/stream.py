@@ -10,11 +10,7 @@ from quas.context import ContextObject
 MAX_CONTENT_LENGTH = 1000
 
 
-@click.group()
-def app() -> None: ...
-
-
-@app.command(help="Extract and display all PDF streams")
+@click.command(help="Extract and display all PDF streams")
 @click.pass_obj
 @click.argument("infile", type=Path)
 def stream(ctx: ContextObject, infile: Path) -> None:
@@ -23,7 +19,6 @@ def stream(ctx: ContextObject, infile: Path) -> None:
     doc = pymupdf.open(str(infile))
     for xref in range(1, doc.xref_length()):
         if not doc.xref_is_stream(xref):
-            # console.log(doc.xref_object(xref, compressed=False))
             continue
 
         data = doc.xref_stream(xref)
