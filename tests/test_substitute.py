@@ -57,9 +57,9 @@ def test_substitution_cipher_identity():
     alphabet = Alphabet(list(string.ascii_uppercase))
 
     ciphertext = "HELLO"
-    cindics = np.array(alphabet.encode(ciphertext), dtype=np.uint8)
-    pindics = cipher.decrypt(cindics)
-    plaintext = alphabet.decode(pindics)
+    cindices = alphabet.encode(ciphertext)
+    pindices = cipher.decrypt(cindices)
+    plaintext = alphabet.decode(pindices)
 
     assert plaintext == ciphertext
 
@@ -88,12 +88,12 @@ def test_hill_climber_simple_cipher():
     calphabet = Alphabet(list(string.ascii_uppercase))
 
     ciphertext = "GUR DHPVP OEBJA SBK"
-    cindics = np.array(calphabet.encode(ciphertext), dtype=np.uint8)
+    cindices = calphabet.encode(ciphertext)
 
     climber = HillClimber(english_upper, restarts=3, seed=42)
-    result = climber.climb(key, cindics)
+    result = climber.climb(key, cindices)
 
-    assert result.score < 0
+    assert result.score > 1
     assert isinstance(result.key, Key)
 
 
@@ -102,13 +102,13 @@ def test_hill_climber_with_seed():
     calphabet = Alphabet(list(string.ascii_uppercase))
 
     ciphertext = "GUR DHPVP"
-    cindics = np.array(calphabet.encode(ciphertext), dtype=np.uint8)
+    cindices = calphabet.encode(ciphertext)
 
     climber1 = HillClimber(english_upper, restarts=3, seed=42)
-    result1 = climber1.climb(key, cindics)
+    result1 = climber1.climb(key, cindices)
 
     climber2 = HillClimber(english_upper, restarts=3, seed=42)
-    result2 = climber2.climb(key, cindics)
+    result2 = climber2.climb(key, cindices)
 
     assert np.array_equal(result1.key.data, result2.key.data)
     assert result1.score == result2.score
@@ -119,10 +119,10 @@ def test_hill_climber_crack():
     calphabet = Alphabet(list(string.ascii_uppercase))
 
     ciphertext = "GUR DHPVP"
-    cindics = np.array(calphabet.encode(ciphertext), dtype=np.uint8)
+    cindices = calphabet.encode(ciphertext)
 
     climber = HillClimber(english_upper, restarts=2, seed=42)
-    results = list(climber.crack(key, cindics))
+    results = list(climber.crack(key, cindices))
 
     assert len(results) == 2
     assert all(isinstance(r, Result) for r in results)

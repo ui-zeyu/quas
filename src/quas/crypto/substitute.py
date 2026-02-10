@@ -51,7 +51,7 @@ class SubstitutionCipher:
     def encrypt(self, plaintext: Iterable[int]) -> tuple[int, ...]:
         return tuple(map(self.key.index, plaintext))
 
-    def decrypt(self, ciphertext: tuple[int, ...]) -> tuple[int, ...]:
+    def decrypt(self, ciphertext: Iterable[int]) -> tuple[int, ...]:
         return tuple(map(lambda x: self.key[x], ciphertext))
 
     def decrypt_str(
@@ -143,10 +143,10 @@ def crack(
     key = Key.from_palphabet(palphabet)
 
     ciphertext = ciphertext if ciphertext else stdin.read()
-    cindics = calphabet.encode(ciphertext)
+    cindices = calphabet.encode(ciphertext)
 
     climber = HillClimber(english_upper, restarts)
-    results = climber.crack(key, cindics)
+    results = climber.crack(key, cindices)
 
     table = Table("Key", "Plaintext", "Score", box=None)
     for key, score in heapq.nlargest(top, set(results), lambda x: x.score):

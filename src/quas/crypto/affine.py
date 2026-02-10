@@ -84,8 +84,8 @@ def bruteforce(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
 
     ciphertext = ciphertext if ciphertext else stdin.read()
     ciphertext = ciphertext.strip().upper()
-    cindics = AffineCipher.ALPHABET.encode(ciphertext)
-    results = AffineCipher.crack(cindics)
+    cindices = AffineCipher.ALPHABET.encode(ciphertext)
+    results = AffineCipher.crack(cindices)
 
     table = Table("a", "b", "Plaintext", "Score", box=None)
     for a, b, score in heapq.nlargest(top, results, lambda x: x.score):

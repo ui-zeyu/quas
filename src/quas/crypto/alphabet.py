@@ -26,8 +26,8 @@ class Alphabet:
     def decode_letter(self, idx: int) -> str:
         return self.alphabet[idx]
 
-    def decode(self, indics: Iterable[int]) -> str:
-        return "".join(map(self.decode_letter, indics))
+    def decode(self, indices: Iterable[int]) -> str:
+        return "".join(map(self.decode_letter, indices))
 
 
 english_upper = Alphabet(list(string.ascii_uppercase))

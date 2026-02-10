@@ -40,14 +40,14 @@ def test_score_quadgrams_english():
     text = "THEQUICKBROWNFOXJUMPSOVERTHELAZYDOG"
     score = english_upper.score(text)
     assert isinstance(score, float)
-    assert score < 0
+    assert score > 1
 
 
 def test_score_quadgrams_random():
     text = "XYZQKDLFMNVBCRPUGZWYHS"
     score = english_upper.score(text)
     assert isinstance(score, float)
-    assert score < 0
+    assert score > 1
 
 
 def test_decrypt_affine_identity():

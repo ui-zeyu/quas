@@ -27,7 +27,8 @@ class Quadgram(ABC):
         self.chars_to_score: dict[str, float] = {}
         for key, count in ngrams.items():
             self.chars_to_score[key] = log10(count / total)
-        self.floor = log10(0.01 / total)
+        self.floor: float = log10(0.01 / total)
+        self.offset: float = -self.floor + 1
 
     def score(self, chars: str) -> float:
         total = 0
@@ -42,31 +43,42 @@ class EnglishUpper(Quadgram):
     def __init__(self, filepath: Path) -> None:
         super().__init__(filepath)
 
-        self.indics_to_scores = np.full(2**20, self.floor, dtype=np.float32)
+        self.indics_to_scores: np.ndarray[tuple[int], np.dtype[np.float32]] = np.full(
+            2**20,
+            self.floor,
+            dtype=np.float32,
+        )
         for key, score in self.chars_to_score.items():
-            indics = cast(tuple[int, int, int, int], self.ALPHABET.encode(key))
+            indices = cast(tuple[int, int, int, int], self.ALPHABET.encode(key))
             idx = (
-                (indics[0] << 0)
-                | (indics[1] << 5)
-                | (indics[2] << 10)
-                | (indics[3] << 15)
+                (indices[0] << 0)
+                | (indices[1] << 5)
+                | (indices[2] << 10)
+                | (indices[3] << 15)
             )
             self.indics_to_scores[idx] = score
 
     def score_indics(
         self,
-        indics: np.ndarray[tuple[int], np.dtype[np.uint32]],
+        indices: np.ndarray[tuple[int], np.dtype[np.uint32]],
     ) -> float:
-        indices = (
-            indics[:-3] | indics[1:-2] << 5 | indics[2:-1] << 10 | indics[3:] << 15
-        )
-        return float(np.add.reduce(self.indics_to_scores[indices]))
+        if indices.size < 4:
+            score = self.floor
+        else:
+            windows = (
+                indices[:-3]
+                | indices[1:-2] << 5
+                | indices[2:-1] << 10
+                | indices[3:] << 15
+            )
+            score = np.sum(self.indics_to_scores[windows], dtype=float) / indices.size
+        return score + self.offset
 
     @override
     def score(self, chars: str) -> float:
-        indics = self.ALPHABET.encode(chars)
-        indics = np.array(indics, dtype=np.uint32)
-        return self.score_indics(indics)
+        indices = self.ALPHABET.encode(chars)
+        indices = np.array(indices, dtype=np.uint32)
+        return self.score_indics(indices)
 
 
 filepath = Path(__file__).parent / "english_quadgrams.txt"
