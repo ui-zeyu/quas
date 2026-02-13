@@ -27,7 +27,7 @@ class DoublePictureBlindWatermarkExtractor:
         self.random.shuffle(indices)
         return indices
 
-    def _reverse_shuffle(self, watermark: np.ndarray) -> np.ndarray:
+    def _reverse_shuffle(self, watermark: ImageArray) -> ImageArray:
         h, w, _ = watermark.shape
 
         h_half = h // 2
@@ -35,7 +35,7 @@ class DoublePictureBlindWatermarkExtractor:
         col_idx = self._generate_shuffle_indices(w)
 
         restored = np.zeros_like(watermark)
-        restored[np.ix_(row_idx, col_idx)] = np.uint8(watermark[:h_half, :])
+        restored[np.ix_(row_idx, col_idx)] = watermark[:h_half, :]
         restored[h_half:, :] = restored[:h_half, :][::-1, ::-1]
         return restored
 

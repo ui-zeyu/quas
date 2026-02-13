@@ -6,14 +6,18 @@ from typing import override
 import click
 import numpy as np
 from PIL import Image
+from scipy.fft import dctn
 
 from quas.context import ContextObject
 
+type ImageArray = np.ndarray[tuple[int, ...], np.dtype[np.uint8]]
 
-class ResizeMode(Enum):
-    RESIZE = auto()
-    PAD = auto()
-    CROP = auto()
+
+class Mode(Enum):
+    DFT_RESIZE = auto()
+    DFT_PAD = auto()
+    DFT_CROP = auto()
+    DCT = auto()
 
     def to_extractor(
         self,
@@ -21,12 +25,14 @@ class ResizeMode(Enum):
         brightness: float,
     ) -> SinglePictureBlindWatermarkExtractor:
         match self:
-            case ResizeMode.RESIZE:
-                extractor = ResizeExtractor
-            case ResizeMode.PAD:
-                extractor = PadExtractor
-            case ResizeMode.CROP:
-                extractor = CropExtractor
+            case Mode.DFT_RESIZE:
+                extractor = DFTResizeExtractor
+            case Mode.DFT_PAD:
+                extractor = DFTPadExtractor
+            case Mode.DFT_CROP:
+                extractor = DFTCropExtractor
+            case Mode.DCT:
+                extractor = DCTExtractor
         return extractor(image, brightness)
 
 
@@ -34,37 +40,44 @@ class SinglePictureBlindWatermarkExtractor(ABC):
     def __init__(self, image: Image.Image, brightness: float) -> None:
         self.image = image
         self.w, self.h = image.size
-        self.nw, self.nh = self.calculate_size(self.w), self.calculate_size(self.h)
         self.scale_factor = brightness / 5
+
+    @abstractmethod
+    def preprocess(self) -> ImageArray:
+        raise NotImplementedError
+
+    @abstractmethod
+    def postprocess(self, array: ImageArray) -> Image.Image:
+        raise NotImplementedError
+
+    @abstractmethod
+    def extract(self) -> Image.Image:
+        raise NotImplementedError
+
+
+class DFTExtractor(SinglePictureBlindWatermarkExtractor):
+    @override
+    def __init__(self, image: Image.Image, brightness: float) -> None:
+        super().__init__(image, brightness)
+        self.nw, self.nh = self.calculate_size(self.w), self.calculate_size(self.h)
 
     @abstractmethod
     def calculate_size(self, size: int) -> int:
         raise NotImplementedError
 
-    @abstractmethod
-    def preprocess(self) -> Image.Image:
-        raise NotImplementedError
-
-    @abstractmethod
-    def postprocess(self, image: Image.Image) -> Image.Image:
-        raise NotImplementedError
-
+    @override
     def extract(self) -> Image.Image:
-        image = self.preprocess()
-        array = np.array(image, dtype=np.float32)
-
+        array = self.preprocess()
         fft = np.fft.fft2(array, axes=(0, 1))
         modulus = np.abs(fft)
 
         sqrt_pixels = np.sqrt(self.nw * self.nh)
         watermark = np.around(modulus / sqrt_pixels) * self.scale_factor
         watermark = np.clip(watermark, 0, 255).astype(np.uint8)
-
-        image = Image.fromarray(watermark, mode="RGB")
-        return self.postprocess(image)
+        return self.postprocess(watermark)
 
 
-class ResizeExtractor(SinglePictureBlindWatermarkExtractor):
+class DFTResizeExtractor(DFTExtractor):
     @override
     def calculate_size(self, size: int) -> int:
         k = (size - 1).bit_length()
@@ -72,46 +85,75 @@ class ResizeExtractor(SinglePictureBlindWatermarkExtractor):
         return lower if size - lower < upper - size else upper
 
     @override
-    def preprocess(self) -> Image.Image:
-        return self.image.resize((self.nw, self.nh), Image.Resampling.LANCZOS)
+    def preprocess(self) -> ImageArray:
+        image = self.image.resize((self.nw, self.nh), Image.Resampling.LANCZOS)
+        return np.array(image, dtype=np.float32)
 
     @override
-    def postprocess(self, image: Image.Image) -> Image.Image:
+    def postprocess(self, array: ImageArray) -> Image.Image:
+        image = Image.fromarray(array)
         return image.resize((self.w, self.h), Image.Resampling.LANCZOS)
 
 
-class PadExtractor(SinglePictureBlindWatermarkExtractor):
+class DFTPadExtractor(DFTExtractor):
     @override
     def calculate_size(self, size: int) -> int:
         return 1 << (size - 1).bit_length()
 
     @override
-    def preprocess(self) -> Image.Image:
+    def preprocess(self) -> ImageArray:
         image = Image.new("RGB", (self.nw, self.nh), (0, 0, 0))
         image.paste(self.image, (0, 0))
-        return image
+        return np.array(image, dtype=np.float32)
 
     @override
-    def postprocess(self, image: Image.Image) -> Image.Image:
-        return image
+    def postprocess(self, array: ImageArray) -> Image.Image:
+        return Image.fromarray(array)
 
 
-class CropExtractor(SinglePictureBlindWatermarkExtractor):
+class DFTCropExtractor(DFTExtractor):
     @override
     def calculate_size(self, size: int) -> int:
         return 1 << (size.bit_length() - 1)
 
     @override
-    def preprocess(self) -> Image.Image:
-        return self.image.crop((0, 0, self.nw, self.nh))
+    def preprocess(self) -> ImageArray:
+        image = self.image.crop((0, 0, self.nw, self.nh))
+        return np.array(image, dtype=np.float32)
 
     @override
-    def postprocess(self, image: Image.Image) -> Image.Image:
-        return image
+    def postprocess(self, array: ImageArray) -> Image.Image:
+        return Image.fromarray(array)
+
+
+class DCTExtractor(SinglePictureBlindWatermarkExtractor):
+    @override
+    def __init__(self, image: Image.Image, brightness: float):
+        super().__init__(image, brightness)
+
+    @override
+    def preprocess(self) -> ImageArray:
+        pad_h, pad_w = 0 if self.h & 1 == 0 else 1, 0 if self.w & 1 == 0 else 1
+        array = np.array(self.image)
+        if pad_h or pad_w:
+            array = np.pad(array, ((0, pad_h), (0, pad_w), (0, 0)), mode="edge")
+        return array
+
+    @override
+    def postprocess(self, array: ImageArray) -> Image.Image:
+        return Image.fromarray(array)
+
+    @override
+    def extract(self) -> Image.Image:
+        array = self.preprocess()
+        dct_coeffs = dctn(array, axes=(0, 1), norm="ortho")
+        watermark_mask = np.all((dct_coeffs >= 0) & (dct_coeffs <= 16), axis=-1)
+        watermark = (watermark_mask * 255).astype(np.uint8)
+        return self.postprocess(watermark)
 
 
 @click.command(
-    help="Extract single image blind watermark using FFT frequency domain analysis",
+    help="Extract single image blind watermark using frequency domain analysis",
 )
 @click.pass_obj
 @click.argument("infile", type=Path)
@@ -119,16 +161,22 @@ class CropExtractor(SinglePictureBlindWatermarkExtractor):
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(ResizeMode, case_sensitive=False),
-    default=ResizeMode.RESIZE,
-    help="Processing mode: resize (stretch), pad (black border), or crop (trim)",
+    type=click.Choice(Mode, case_sensitive=False),
+    default=Mode.DFT_RESIZE,
+    help="Processing mode: dft-resize (nearest power of 2), dft-pad (pad to power of 2), dft-crop (trim to power of 2), or dct",
 )
-@click.option("-b", "--brightness", type=float, default=50)
+@click.option(
+    "-b",
+    "--brightness",
+    type=float,
+    default=50,
+    help="Watermark brightness enhancement factor (higher = brighter), dft only",
+)
 def spbwm(
     ctx: ContextObject,
     infile: Path,
     outfile: Path | None,
-    mode: ResizeMode,
+    mode: Mode,
     brightness: float,
 ) -> None:
     console = ctx["console"]
