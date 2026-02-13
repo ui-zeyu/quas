@@ -19,7 +19,7 @@ class ResizeMode(Enum):
         self,
         image: Image.Image,
         brightness: float,
-    ) -> FrequencyDomainExtractor:
+    ) -> SinglePictureBlindWatermarkExtractor:
         match self:
             case ResizeMode.RESIZE:
                 extractor = ResizeExtractor
@@ -30,7 +30,7 @@ class ResizeMode(Enum):
         return extractor(image, brightness)
 
 
-class FrequencyDomainExtractor(ABC):
+class SinglePictureBlindWatermarkExtractor(ABC):
     def __init__(self, image: Image.Image, brightness: float) -> None:
         self.image = image
         self.w, self.h = image.size
@@ -64,7 +64,7 @@ class FrequencyDomainExtractor(ABC):
         return self.postprocess(image)
 
 
-class ResizeExtractor(FrequencyDomainExtractor):
+class ResizeExtractor(SinglePictureBlindWatermarkExtractor):
     @override
     def calculate_size(self, size: int) -> int:
         k = (size - 1).bit_length()
@@ -80,7 +80,7 @@ class ResizeExtractor(FrequencyDomainExtractor):
         return image.resize((self.w, self.h), Image.Resampling.LANCZOS)
 
 
-class PadExtractor(FrequencyDomainExtractor):
+class PadExtractor(SinglePictureBlindWatermarkExtractor):
     @override
     def calculate_size(self, size: int) -> int:
         return 1 << (size - 1).bit_length()
@@ -96,7 +96,7 @@ class PadExtractor(FrequencyDomainExtractor):
         return image
 
 
-class CropExtractor(FrequencyDomainExtractor):
+class CropExtractor(SinglePictureBlindWatermarkExtractor):
     @override
     def calculate_size(self, size: int) -> int:
         return 1 << (size.bit_length() - 1)
