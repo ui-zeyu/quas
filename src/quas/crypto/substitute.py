@@ -144,6 +144,7 @@ def crack(
     key = Key.from_palphabet(palphabet)
 
     ciphertext = ciphertext if ciphertext else stdin.read()
+    ciphertext = ciphertext.upper()
     cindices = calphabet.encode(ciphertext)
 
     climber = HillClimber(quadgram, restarts)
