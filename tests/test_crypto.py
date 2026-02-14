@@ -8,7 +8,11 @@ from quas.crypto.affine import (
     Key,
 )
 from quas.crypto.affine import (
-    bruteforce as affine_command,
+    crack as affine_command,
+)
+from quas.crypto.caesar import CaesarCipher, Result
+from quas.crypto.caesar import (
+    crack as caesar_command,
 )
 
 
@@ -106,3 +110,97 @@ def test_affine_command_case_insensitive():
     cipher = AffineCipher(Key(a, b))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO"
+
+
+def test_caesar_mod():
+    assert CaesarCipher.MOD == 26
+
+
+def test_caesar_decrypt_letter_identity():
+    shift = 0
+    cipher = CaesarCipher(shift)
+    assert cipher.decrypt_letter(0) == 0
+    assert cipher.decrypt_letter(25) == 25
+
+
+def test_caesar_decrypt_letter_shift():
+    shift = 3
+    cipher = CaesarCipher(shift)
+    assert cipher.decrypt_letter(3) == 0
+    assert cipher.decrypt_letter(4) == 1
+    assert cipher.decrypt_letter(7) == 4
+    assert cipher.decrypt_letter(0) == 23
+
+
+def test_caesar_decrypt_identity():
+    ciphertext = "HELLO"
+    shift = 0
+    cipher = CaesarCipher(shift)
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == ciphertext
+
+
+def test_caesar_decrypt_shift():
+    ciphertext = "KHOOR"
+    shift = 3
+    cipher = CaesarCipher(shift)
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "HELLO"
+
+
+def test_caesar_decrypt_preserves_non_alpha():
+    ciphertext = "KHOOR, ZRUOG!"
+    shift = 3
+    cipher = CaesarCipher(shift)
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "HELLO, WORLD!"
+    assert "," in plaintext
+    assert " " in plaintext
+    assert "!" in plaintext
+
+
+def test_caesar_decrypt_case_preserved():
+    ciphertext = "Khoor, Zruog!"
+    shift = 3
+    cipher = CaesarCipher(shift)
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "Hello, World!"
+
+
+def test_caesar_crack():
+    ciphertext = "KHOOR ZRUOG"
+    cipher_indices = CaesarCipher.ALPHABET.encode(ciphertext)
+    results = list(CaesarCipher.crack(cipher_indices))
+    assert len(results) == 26
+    assert all(isinstance(r, Result) for r in results)
+    assert all(0 <= r.shift < 26 for r in results)
+    assert all(isinstance(r.score, float) for r in results)
+
+
+def test_caesar_crack_find_best():
+    ciphertext = "KHOOR ZRUOG"
+    cipher_indices = CaesarCipher.ALPHABET.encode(ciphertext)
+    results = list(CaesarCipher.crack(cipher_indices))
+    best = max(results, key=lambda x: x.score)
+    assert best.shift == 3
+    cipher = CaesarCipher(best.shift)
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "HELLO WORLD"
+
+
+def test_caesar_command():
+    runner = CliRunner()
+    ctx_obj: ContextObject = {"console": Console(), "debug": False}
+    result = runner.invoke(caesar_command, ["KHOOR"], obj=ctx_obj)
+    assert result.exit_code == 0
+    assert "Score" in result.output
+    assert "Shift" in result.output
+    assert "Plaintext" in result.output
+
+
+def test_caesar_command_with_top():
+    runner = CliRunner()
+    ctx_obj: ContextObject = {"console": Console(), "debug": False}
+    result = runner.invoke(caesar_command, ["--top", "5", "KHOOR"], obj=ctx_obj)
+    assert result.exit_code == 0
+    assert "Score" in result.output

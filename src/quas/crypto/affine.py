@@ -80,7 +80,7 @@ class AffineCipher:
 @click.pass_obj
 @click.argument("ciphertext", type=str, required=False)
 @click.option("-t", "--top", type=int, default=10, help="Show top N results")
-def bruteforce(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
+def crack(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     console = ctx["console"]
 
     ciphertext = ciphertext if ciphertext else stdin.read()
