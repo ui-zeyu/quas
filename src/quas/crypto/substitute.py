@@ -10,11 +10,11 @@ import click
 import numpy as np
 from rich.table import Table
 
+from quas.analysis.alphabet import Alphabet
+from quas.analysis.alphabet import english_upper as palphabet
+from quas.analysis.characterizer import Characterizer
+from quas.analysis.quadgram import quadgram
 from quas.context import ContextObject
-from quas.crypto.alphabet import Alphabet
-from quas.crypto.alphabet import english_upper as palphabet
-from quas.crypto.characterizer import Characterizer
-from quas.crypto.quadgram import quadgram
 
 
 class Result(NamedTuple):

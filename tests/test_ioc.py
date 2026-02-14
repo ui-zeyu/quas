@@ -1,8 +1,8 @@
 import numpy as np
 
-from quas.crypto.alphabet import english_upper
-from quas.crypto.characterizer import Characterizer
-from quas.crypto.ioc import IndexOfCoincidence
+from quas.analysis.alphabet import english_upper
+from quas.analysis.characterizer import Characterizer
+from quas.analysis.ioc import IndexOfCoincidence
 
 
 def test_ioc_is_characterizer():

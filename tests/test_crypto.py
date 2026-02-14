@@ -1,6 +1,7 @@
 from click.testing import CliRunner
 from rich.console import Console
 
+from quas.analysis.quadgram import Quadgram, quadgram
 from quas.context import ContextObject
 from quas.crypto.affine import (
     AffineCipher,
@@ -9,7 +10,6 @@ from quas.crypto.affine import (
 from quas.crypto.affine import (
     bruteforce as affine_command,
 )
-from quas.crypto.quadgram import Quadgram, quadgram
 
 
 def test_mod_inverses():

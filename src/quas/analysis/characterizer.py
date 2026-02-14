@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from quas.crypto.alphabet import Alphabet, english_upper
+from quas.analysis.alphabet import Alphabet, english_upper
 
 
 class Characterizer(ABC):

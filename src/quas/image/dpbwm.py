@@ -53,7 +53,7 @@ class DoublePictureBlindWatermarkExtractor:
     default=20160930,
     help="Default seed for BlindWaterMark, try height + width for blind-watermark",
 )
-@click.option("--old", is_flag=True, default=False, help="Use Python2 random algorithm")
+@click.option("--old", is_flag=True, help="Use Python2 random algorithm")
 @click.argument("original", type=Path)
 @click.argument("watermarked", type=Path)
 @click.argument("outfile", type=Path, required=False)

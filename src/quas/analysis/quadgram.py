@@ -4,7 +4,7 @@ from typing import cast, override
 
 import numpy as np
 
-from quas.crypto.characterizer import Characterizer
+from quas.analysis.characterizer import Characterizer
 
 
 class Quadgram(Characterizer):

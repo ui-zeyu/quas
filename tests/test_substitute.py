@@ -4,10 +4,10 @@ import numpy as np
 from click.testing import CliRunner
 from rich.console import Console
 
+from quas.analysis.alphabet import Alphabet
+from quas.analysis.alphabet import english_upper as palphabet
+from quas.analysis.quadgram import quadgram
 from quas.context import ContextObject
-from quas.crypto.alphabet import Alphabet
-from quas.crypto.alphabet import english_upper as palphabet
-from quas.crypto.quadgram import quadgram
 from quas.crypto.substitute import (
     HillClimber,
     Key,
