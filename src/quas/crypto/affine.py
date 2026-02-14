@@ -10,7 +10,8 @@ from rich.table import Table
 from quas.context import ContextObject
 from quas.crypto.alphabet import Alphabet
 from quas.crypto.alphabet import english_upper as palphabet
-from quas.crypto.quadgram import EnglishUpper, english_upper
+from quas.crypto.characterizer import Characterizer
+from quas.crypto.quadgram import quadgram
 
 
 class Result(NamedTuple):
@@ -27,7 +28,7 @@ class Key(NamedTuple):
 class AffineCipher:
     MOD: int = 26
     ALPHABET: Alphabet = palphabet
-    QUADGRAM: EnglishUpper = english_upper
+    CHARACTERIZER: Characterizer = quadgram
     MOD_INVERSES: dict[int, int] = {
         1: 1,
         3: 9,
@@ -49,7 +50,7 @@ class AffineCipher:
             for b in range(cls.MOD):
                 cipher = cls(Key(a, b))
                 plaintext = np.array(cipher.decrypt(ciphertext), dtype=np.uint32)
-                score = cls.QUADGRAM.score_indics(plaintext)
+                score = cls.CHARACTERIZER.score(plaintext)
                 yield Result(a, b, score)
 
     def __init__(self, key: Key) -> None:

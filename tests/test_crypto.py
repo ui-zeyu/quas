@@ -9,7 +9,7 @@ from quas.crypto.affine import (
 from quas.crypto.affine import (
     bruteforce as affine_command,
 )
-from quas.crypto.quadgram import Quadgram, english_upper
+from quas.crypto.quadgram import Quadgram, quadgram
 
 
 def test_mod_inverses():
@@ -29,23 +29,23 @@ def test_mod_inverses():
 
 
 def test_load_quadgrams():
-    assert isinstance(english_upper, Quadgram)
-    assert isinstance(english_upper.chars_to_score, dict)
-    assert len(english_upper.chars_to_score) > 0
-    assert isinstance(english_upper.floor, float)
-    assert english_upper.floor < 0
+    assert isinstance(quadgram, Quadgram)
+    assert isinstance(quadgram.char_to_score, dict)
+    assert len(quadgram.char_to_score) > 0
+    assert isinstance(quadgram.floor, float)
+    assert quadgram.floor < 0
 
 
 def test_score_quadgrams_english():
     text = "THEQUICKBROWNFOXJUMPSOVERTHELAZYDOG"
-    score = english_upper.score(text)
+    score = quadgram.score_text(text)
     assert isinstance(score, float)
     assert score > 1
 
 
 def test_score_quadgrams_random():
     text = "XYZQKDLFMNVBCRPUGZWYHS"
-    score = english_upper.score(text)
+    score = quadgram.score_text(text)
     assert isinstance(score, float)
     assert score > 1
 

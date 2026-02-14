@@ -7,7 +7,7 @@ from rich.console import Console
 from quas.context import ContextObject
 from quas.crypto.alphabet import Alphabet
 from quas.crypto.alphabet import english_upper as palphabet
-from quas.crypto.quadgram import english_upper
+from quas.crypto.quadgram import quadgram
 from quas.crypto.substitute import (
     HillClimber,
     Key,
@@ -90,7 +90,7 @@ def test_hill_climber_simple_cipher():
     ciphertext = "GUR DHPVP OEBJA SBK"
     cindices = calphabet.encode(ciphertext)
 
-    climber = HillClimber(english_upper, restarts=3, seed=42)
+    climber = HillClimber(quadgram, restarts=3, seed=42)
     result = climber.climb(key, cindices)
 
     assert result.score > 1
@@ -104,10 +104,10 @@ def test_hill_climber_with_seed():
     ciphertext = "GUR DHPVP"
     cindices = calphabet.encode(ciphertext)
 
-    climber1 = HillClimber(english_upper, restarts=3, seed=42)
+    climber1 = HillClimber(quadgram, restarts=3, seed=42)
     result1 = climber1.climb(key, cindices)
 
-    climber2 = HillClimber(english_upper, restarts=3, seed=42)
+    climber2 = HillClimber(quadgram, restarts=3, seed=42)
     result2 = climber2.climb(key, cindices)
 
     assert np.array_equal(result1.key.data, result2.key.data)
@@ -121,7 +121,7 @@ def test_hill_climber_crack():
     ciphertext = "GUR DHPVP"
     cindices = calphabet.encode(ciphertext)
 
-    climber = HillClimber(english_upper, restarts=2, seed=42)
+    climber = HillClimber(quadgram, restarts=2, seed=42)
     results = list(climber.crack(key, cindices))
 
     assert len(results) == 2

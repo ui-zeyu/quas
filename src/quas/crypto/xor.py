@@ -11,7 +11,8 @@ from rich.table import Table
 from quas.context import ContextObject
 from quas.crypto.alphabet import Alphabet
 from quas.crypto.alphabet import english_upper as alphabet
-from quas.crypto.quadgram import EnglishUpper, english_upper
+from quas.crypto.characterizer import Characterizer
+from quas.crypto.quadgram import quadgram
 
 
 class Result(NamedTuple):
@@ -21,7 +22,7 @@ class Result(NamedTuple):
 
 class XorCipher:
     ALPHABET: Alphabet = alphabet
-    QUADGRAM: EnglishUpper = english_upper
+    CHARACTERIZER: Characterizer = quadgram
 
     @classmethod
     def crack(cls, ciphertext: bytes) -> Generator[Result]:
@@ -30,7 +31,7 @@ class XorCipher:
             plaintext = cls(key).decrypt(ciphertext)
             plaintext = plaintext.decode(errors="ignore").upper()
             plaintext = np.array(cls.ALPHABET.encode(plaintext), dtype=np.uint32)
-            score = cls.QUADGRAM.score_indics(plaintext)
+            score = cls.CHARACTERIZER.score(plaintext)
             score *= plaintext.size / len(ciphertext)
             yield Result(key, score)
 

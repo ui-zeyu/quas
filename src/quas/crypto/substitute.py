@@ -13,7 +13,8 @@ from rich.table import Table
 from quas.context import ContextObject
 from quas.crypto.alphabet import Alphabet
 from quas.crypto.alphabet import english_upper as palphabet
-from quas.crypto.quadgram import EnglishUpper, english_upper
+from quas.crypto.characterizer import Characterizer
+from quas.crypto.quadgram import quadgram
 
 
 class Result(NamedTuple):
@@ -71,18 +72,18 @@ class SubstitutionCipher:
 class HillClimber:
     def __init__(
         self,
-        quadgram: EnglishUpper,
+        characterizer: Characterizer,
         restarts: int = 5,
         seed: int | None = None,
     ) -> None:
-        self.quadgram = quadgram
+        self.characterizer = characterizer
         self.restarts = restarts
         self.rng = Random(seed)
 
     def climb(self, key: Key, ciphertext: tuple[int, ...]) -> Result:
         cipher = SubstitutionCipher(key.shuffle(self.rng))
         plaintext = np.array(cipher.decrypt(ciphertext), dtype=np.uint32)
-        best_score = self.quadgram.score_indics(plaintext)
+        best_score = self.characterizer.score(plaintext)
 
         swaps = np.triu_indices(len(key), k=1)
         while True:
@@ -95,7 +96,7 @@ class HillClimber:
                 plaintext[mask_i], plaintext[mask_j] = cipher.key[j], cipher.key[i]
                 cipher.key.swap(i, j)
 
-                score = self.quadgram.score_indics(plaintext)
+                score = self.characterizer.score(plaintext)
                 if score > best_score:
                     best_score = score
                     better = True
@@ -145,7 +146,7 @@ def crack(
     ciphertext = ciphertext if ciphertext else stdin.read()
     cindices = calphabet.encode(ciphertext)
 
-    climber = HillClimber(english_upper, restarts)
+    climber = HillClimber(quadgram, restarts)
     results = climber.crack(key, cindices)
 
     table = Table("Key", "Plaintext", "Score", box=None)
