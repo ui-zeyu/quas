@@ -1,79 +1,13 @@
 import heapq
-from collections.abc import Generator
 from sys import stdin
-from typing import NamedTuple
 
 import click
-import numpy as np
 from rich.table import Table
 
-from quas.analysis.alphabet import Alphabet
-from quas.analysis.alphabet import english_upper as palphabet
-from quas.analysis.characterizer import Characterizer
-from quas.analysis.quadgram import quadgram
+from quas.analysis import english_upper
 from quas.context import ContextObject
-
-
-class Result(NamedTuple):
-    a: int
-    b: int
-    score: float
-
-
-class Key(NamedTuple):
-    a: int
-    b: int
-
-
-class AffineCipher:
-    MOD: int = 26
-    ALPHABET: Alphabet = palphabet
-    CHARACTERIZER: Characterizer = quadgram
-    MOD_INVERSES: dict[int, int] = {
-        1: 1,
-        3: 9,
-        5: 21,
-        7: 15,
-        9: 3,
-        11: 19,
-        15: 7,
-        17: 23,
-        19: 11,
-        21: 5,
-        23: 17,
-        25: 25,
-    }
-
-    @classmethod
-    def crack(cls, ciphertext: tuple[int, ...]) -> Generator[Result]:
-        for a in cls.MOD_INVERSES:
-            for b in range(cls.MOD):
-                cipher = cls(Key(a, b))
-                plaintext = np.array(cipher.decrypt(ciphertext), dtype=np.uint32)
-                score = cls.CHARACTERIZER.score(plaintext)
-                yield Result(a, b, score)
-
-    def __init__(self, key: Key) -> None:
-        self.a, self.b = key.a, key.b
-        self.a_inv = self.MOD_INVERSES[self.a]
-
-    def decrypt_letter(self, letter: int) -> int:
-        return (self.a_inv * (letter - self.b)) % self.MOD
-
-    def decrypt(self, ciphertext: tuple[int, ...]) -> tuple[int, ...]:
-        return tuple(self.decrypt_letter(x) for x in ciphertext)
-
-    def decrypt_str(self, ciphertext: str) -> str:
-        plaintext = []
-        for c in ciphertext:
-            x = self.ALPHABET.encode_letter(c)
-            cc = (
-                self.ALPHABET.decode_letter(self.decrypt_letter(x))
-                if x is not None
-                else c
-            )
-            plaintext.append(cc)
-        return "".join(plaintext)
+from quas.crypto.ciphers import AffineCipher
+from quas.crypto.crackers import AffineCracker
 
 
 @click.command(help="Bruteforce affine cipher with N-gram scoring")
@@ -83,14 +17,13 @@ class AffineCipher:
 def crack(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     console = ctx["console"]
 
-    ciphertext = ciphertext if ciphertext else stdin.read()
-    ciphertext = ciphertext.strip().upper()
-    cindices = AffineCipher.ALPHABET.encode(ciphertext)
-    results = AffineCipher.crack(cindices)
+    ciphertext = (ciphertext or stdin.read()).strip()
+    cindices = english_upper.encode(ciphertext.upper())
+    results = AffineCracker().crack(cindices)
 
     table = Table("a", "b", "Plaintext", "Score", box=None)
-    for a, b, score in heapq.nlargest(top, results, lambda x: x.score):
-        cipher = AffineCipher(Key(a, b))
+    for key, score in heapq.nlargest(top, results, lambda x: x.score):
+        cipher = AffineCipher(key)
         plaintext = cipher.decrypt_str(ciphertext)
-        table.add_row(str(a), str(b), plaintext, str(score))
+        table.add_row(str(key.a), str(key.b), plaintext, str(score))
     console.print(table)

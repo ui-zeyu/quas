@@ -1,23 +1,17 @@
 from click.testing import CliRunner
 from rich.console import Console
 
+from quas.analysis.alphabet import english_upper
 from quas.analysis.quadgram import Quadgram, quadgram
 from quas.context import ContextObject
-from quas.crypto.affine import (
-    AffineCipher,
-    Key,
-)
-from quas.crypto.affine import (
-    crack as affine_command,
-)
-from quas.crypto.caesar import CaesarCipher, Result
-from quas.crypto.caesar import (
-    crack as caesar_command,
-)
+from quas.crypto.affine import crack as affine_command
+from quas.crypto.caesar import crack as caesar_command
+from quas.crypto.ciphers.affine import AffineCipher, AffineKey
+from quas.crypto.ciphers.caesar import CaesarCipher, CaesarKey
+from quas.crypto.crackers import CaesarCracker
 
 
 def test_mod_inverses():
-    assert AffineCipher.MOD == 26
     assert AffineCipher.MOD_INVERSES[1] == 1
     assert AffineCipher.MOD_INVERSES[3] == 9
     assert AffineCipher.MOD_INVERSES[5] == 21
@@ -58,7 +52,7 @@ def test_decrypt_affine_identity():
     ciphertext = "HELLO"
     a = 1
     b = 0
-    cipher = AffineCipher(Key(a, b))
+    cipher = AffineCipher(AffineKey(a, b))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == ciphertext
 
@@ -67,7 +61,7 @@ def test_decrypt_affine_shift():
     ciphertext = "KHOOR"
     a = 1
     b = 3
-    cipher = AffineCipher(Key(a, b))
+    cipher = AffineCipher(AffineKey(a, b))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO"
 
@@ -95,7 +89,7 @@ def test_affine_command_preserves_non_alpha():
     ciphertext = "HELLO, WORLD!"
     a = 1
     b = 0
-    cipher = AffineCipher(Key(a, b))
+    cipher = AffineCipher(AffineKey(a, b))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == ciphertext
     assert "," in plaintext
@@ -107,25 +101,21 @@ def test_affine_command_case_insensitive():
     ciphertext = "HELLO"
     a = 1
     b = 0
-    cipher = AffineCipher(Key(a, b))
+    cipher = AffineCipher(AffineKey(a, b))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO"
 
 
-def test_caesar_mod():
-    assert CaesarCipher.MOD == 26
-
-
 def test_caesar_decrypt_letter_identity():
     shift = 0
-    cipher = CaesarCipher(shift)
+    cipher = CaesarCipher(CaesarKey(shift))
     assert cipher.decrypt_letter(0) == 0
     assert cipher.decrypt_letter(25) == 25
 
 
 def test_caesar_decrypt_letter_shift():
     shift = 3
-    cipher = CaesarCipher(shift)
+    cipher = CaesarCipher(CaesarKey(shift))
     assert cipher.decrypt_letter(3) == 0
     assert cipher.decrypt_letter(4) == 1
     assert cipher.decrypt_letter(7) == 4
@@ -135,7 +125,7 @@ def test_caesar_decrypt_letter_shift():
 def test_caesar_decrypt_identity():
     ciphertext = "HELLO"
     shift = 0
-    cipher = CaesarCipher(shift)
+    cipher = CaesarCipher(CaesarKey(shift))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == ciphertext
 
@@ -143,7 +133,7 @@ def test_caesar_decrypt_identity():
 def test_caesar_decrypt_shift():
     ciphertext = "KHOOR"
     shift = 3
-    cipher = CaesarCipher(shift)
+    cipher = CaesarCipher(CaesarKey(shift))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO"
 
@@ -151,7 +141,7 @@ def test_caesar_decrypt_shift():
 def test_caesar_decrypt_preserves_non_alpha():
     ciphertext = "KHOOR, ZRUOG!"
     shift = 3
-    cipher = CaesarCipher(shift)
+    cipher = CaesarCipher(CaesarKey(shift))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO, WORLD!"
     assert "," in plaintext
@@ -162,28 +152,30 @@ def test_caesar_decrypt_preserves_non_alpha():
 def test_caesar_decrypt_case_preserved():
     ciphertext = "Khoor, Zruog!"
     shift = 3
-    cipher = CaesarCipher(shift)
+    cipher = CaesarCipher(CaesarKey(shift))
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "Hello, World!"
 
 
 def test_caesar_crack():
     ciphertext = "KHOOR ZRUOG"
-    cipher_indices = CaesarCipher.ALPHABET.encode(ciphertext)
-    results = list(CaesarCipher.crack(cipher_indices))
+    cipher_indices = english_upper.encode(ciphertext)
+    cracker = CaesarCracker()
+    results = list(cracker.crack(cipher_indices))
     assert len(results) == 26
-    assert all(isinstance(r, Result) for r in results)
-    assert all(0 <= r.shift < 26 for r in results)
+    assert all(isinstance(r.key, CaesarKey) for r in results)
+    assert all(0 <= r.key.value < 26 for r in results)
     assert all(isinstance(r.score, float) for r in results)
 
 
 def test_caesar_crack_find_best():
     ciphertext = "KHOOR ZRUOG"
-    cipher_indices = CaesarCipher.ALPHABET.encode(ciphertext)
-    results = list(CaesarCipher.crack(cipher_indices))
+    cipher_indices = english_upper.encode(ciphertext)
+    cracker = CaesarCracker()
+    results = list(cracker.crack(cipher_indices))
     best = max(results, key=lambda x: x.score)
-    assert best.shift == 3
-    cipher = CaesarCipher(best.shift)
+    assert best.key.value == 3
+    cipher = CaesarCipher(best.key)
     plaintext = cipher.decrypt_str(ciphertext)
     assert plaintext == "HELLO WORLD"
 

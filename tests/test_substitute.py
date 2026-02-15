@@ -5,41 +5,28 @@ from click.testing import CliRunner
 from rich.console import Console
 
 from quas.analysis.alphabet import Alphabet
-from quas.analysis.alphabet import english_upper as palphabet
-from quas.analysis.quadgram import quadgram
 from quas.context import ContextObject
-from quas.crypto.substitute import (
-    HillClimber,
-    Key,
-    Result,
+from quas.crypto.base import Result
+from quas.crypto.ciphers.substitute import (
+    SubstituteKey,
     SubstitutionCipher,
 )
-from quas.crypto.substitute import (
-    crack as substitute_command,
-)
+from quas.crypto.crackers import SubstituteCracker
+from quas.crypto.substitute import crack as substitute_command
 
 
-def test_key_from_palphabet():
-    key = Key.from_palphabet(palphabet)
-    assert len(key) == 26
-    assert all(isinstance(x, int) for x in key.data)
-
-
-def test_key_shuffle():
+def test_substitute_key_random():
     from random import Random
 
-    key1 = Key.from_palphabet(palphabet)
-    key2 = key1.shuffle(Random(42))
-    key3 = key1.shuffle(Random(42))
-    key4 = key1.shuffle(Random(43))
-
-    assert not np.array_equal(key1.data, key2.data)
-    assert np.array_equal(key2.data, key3.data)
-    assert not np.array_equal(key2.data, key4.data)
+    key1 = SubstituteKey.random(Random(42))
+    assert len(key1) == 26
+    assert all(isinstance(x, int) for x in key1.data)
 
 
-def test_key_swap():
-    key = Key.from_palphabet(palphabet)
+def test_substitute_key_swap():
+    from random import Random
+
+    key = SubstituteKey.random(Random(42))
     original_mapping = key.data.copy()
 
     key.swap(0, 1)
@@ -52,9 +39,9 @@ def test_key_swap():
 
 
 def test_substitution_cipher_identity():
-    key = Key.from_palphabet(palphabet)
-    cipher = SubstitutionCipher(key)
+    key = SubstituteKey(range(26))
     alphabet = Alphabet(list(string.ascii_uppercase))
+    cipher = SubstitutionCipher(alphabet, key)
 
     ciphertext = "HELLO"
     cindices = alphabet.encode(ciphertext)
@@ -65,18 +52,20 @@ def test_substitution_cipher_identity():
 
 
 def test_substitution_cipher_decrypt_str():
-    key = Key.from_palphabet(palphabet)
-    cipher = SubstitutionCipher(key)
-    calphabet = Alphabet(list(string.ascii_uppercase))
+    key = SubstituteKey(range(26))
+    alphabet = Alphabet(list(string.ascii_uppercase))
+    cipher = SubstitutionCipher(alphabet, key)
 
     ciphertext = "HELLO, WORLD!"
-    plaintext = cipher.decrypt_str(ciphertext, calphabet, palphabet)
+    plaintext = cipher.decrypt_str(ciphertext)
 
     assert plaintext == ciphertext
 
 
 def test_result():
-    key = Key.from_palphabet(palphabet)
+    from random import Random
+
+    key = SubstituteKey.random(Random(42))
     result = Result(key=key, score=-123.45)
 
     assert result.key == key
@@ -84,49 +73,45 @@ def test_result():
 
 
 def test_hill_climber_simple_cipher():
-    key = Key.from_palphabet(palphabet)
     calphabet = Alphabet(list(string.ascii_uppercase))
 
     ciphertext = "GUR DHPVP OEBJA SBK"
     cindices = calphabet.encode(ciphertext)
 
-    climber = HillClimber(quadgram, restarts=3, seed=42)
-    result = climber.climb(key, cindices)
+    climber = SubstituteCracker(calphabet, restarts=3, seed=42)
+    result = climber.climb(cindices)
 
     assert result.score > 1
-    assert isinstance(result.key, Key)
+    assert isinstance(result.key, SubstituteKey)
 
 
 def test_hill_climber_with_seed():
-    key = Key.from_palphabet(palphabet)
     calphabet = Alphabet(list(string.ascii_uppercase))
 
     ciphertext = "GUR DHPVP"
     cindices = calphabet.encode(ciphertext)
 
-    climber1 = HillClimber(quadgram, restarts=3, seed=42)
-    result1 = climber1.climb(key, cindices)
+    climber1 = SubstituteCracker(calphabet, restarts=3, seed=42)
+    result1 = climber1.climb(cindices)
 
-    climber2 = HillClimber(quadgram, restarts=3, seed=42)
-    result2 = climber2.climb(key, cindices)
+    climber2 = SubstituteCracker(calphabet, restarts=3, seed=42)
+    result2 = climber2.climb(cindices)
 
     assert np.array_equal(result1.key.data, result2.key.data)
     assert result1.score == result2.score
 
 
 def test_hill_climber_crack():
-    key = Key.from_palphabet(palphabet)
     calphabet = Alphabet(list(string.ascii_uppercase))
 
     ciphertext = "GUR DHPVP"
     cindices = calphabet.encode(ciphertext)
 
-    climber = HillClimber(quadgram, restarts=2, seed=42)
-    results = list(climber.crack(key, cindices))
+    climber = SubstituteCracker(calphabet, restarts=2, seed=42)
+    results = list(climber.crack(cindices))
 
     assert len(results) == 2
-    assert all(isinstance(r, Result) for r in results)
-    assert all(isinstance(r.key, Key) for r in results)
+    assert all(isinstance(r.key, SubstituteKey) for r in results)
 
 
 def test_substitute_command():

@@ -1,56 +1,13 @@
 import heapq
-from collections.abc import Generator
 from sys import stdin
-from typing import NamedTuple
 
 import click
-import numpy as np
 from rich.table import Table
 
-from quas.analysis import Alphabet, Characterizer, quadgram
-from quas.analysis import english_upper as palphabet
+from quas.analysis import english_upper
 from quas.context import ContextObject
-
-
-class Result(NamedTuple):
-    shift: int
-    score: float
-
-
-class CaesarCipher:
-    MOD: int = 26
-    ALPHABET: Alphabet = palphabet
-    CHARACTERIZER: Characterizer = quadgram
-
-    @classmethod
-    def crack(cls, ciphertext: tuple[int, ...]) -> Generator[Result]:
-        for shift in range(cls.MOD):
-            cipher = cls(shift)
-            plaintext = np.array(cipher.decrypt(ciphertext), dtype=np.uint32)
-            score = cls.CHARACTERIZER.score(plaintext)
-            yield Result(shift, score)
-
-    def __init__(self, shift: int) -> None:
-        self.shift = shift
-
-    def decrypt_letter(self, letter: int) -> int:
-        return (letter - self.shift) % self.MOD
-
-    def decrypt(self, ciphertext: tuple[int, ...]) -> tuple[int, ...]:
-        return tuple(self.decrypt_letter(x) for x in ciphertext)
-
-    def decrypt_str(self, ciphertext: str) -> str:
-        plaintext = []
-        for c in ciphertext:
-            is_lower = c.islower()
-            x = self.ALPHABET.encode_letter(c.upper())
-            if x is not None:
-                cc = self.ALPHABET.decode_letter(self.decrypt_letter(x))
-                cc = cc.lower() if is_lower else cc
-            else:
-                cc = c
-            plaintext.append(cc)
-        return "".join(plaintext)
+from quas.crypto.ciphers.caesar import CaesarCipher
+from quas.crypto.crackers import CaesarCracker
 
 
 @click.command(help="Bruteforce caesar cipher with quadgram scoring")
@@ -60,14 +17,13 @@ class CaesarCipher:
 def crack(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     console = ctx["console"]
 
-    ciphertext = ciphertext if ciphertext else stdin.read()
-    ciphertext = ciphertext.strip().upper()
-    cindices = CaesarCipher.ALPHABET.encode(ciphertext)
-    results = CaesarCipher.crack(cindices)
+    ciphertext = (ciphertext or stdin.read()).strip()
+    cindices = english_upper.encode(ciphertext.upper())
+    results = CaesarCracker().crack(cindices)
 
     table = Table("Shift", "Plaintext", "Score", box=None)
-    for shift, score in heapq.nlargest(top, results, lambda x: x.score):
-        cipher = CaesarCipher(shift)
+    for key, score in heapq.nlargest(top, results, lambda x: x.score):
+        cipher = CaesarCipher(key)
         plaintext = cipher.decrypt_str(ciphertext)
-        table.add_row(str(shift), plaintext, str(score))
+        table.add_row(str(key.value), plaintext, str(score))
     console.print(table)

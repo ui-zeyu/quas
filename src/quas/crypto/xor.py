@@ -52,7 +52,7 @@ class XorCipher:
 def crack(ctx: ContextObject, top: int, ciphertext: str | None) -> None:
     console = ctx["console"]
 
-    ciphertext = ciphertext if ciphertext else stdin.read().strip()
+    ciphertext = (ciphertext or stdin.read()).strip()
     ciphertext: bytes = bytes.fromhex(ciphertext)
 
     results = XorCipher.crack(ciphertext)
