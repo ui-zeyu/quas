@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from random import Random
 from typing import override
 
@@ -9,7 +9,7 @@ from quas.crypto.base import Cracker, Result
 from quas.crypto.ciphers.substitute import SubstituteKey, SubstitutionCipher
 
 
-class SubstituteCracker(Cracker):
+class SubstituteCracker(Cracker[SubstituteKey, Sequence[int]]):
     def __init__(
         self,
         calphabet: Alphabet,
@@ -20,7 +20,7 @@ class SubstituteCracker(Cracker):
         self.restarts = restarts
         self._rng = Random(seed)
 
-    def climb(self, ciphertext: tuple[int, ...]) -> Result:
+    def climb(self, ciphertext: Sequence[int]) -> Result:
         key = SubstituteKey.random(self._rng)
         cipher = SubstitutionCipher(self.calphabet, key)
         plaintext = np.array(cipher.decrypt(ciphertext), dtype=np.uint32)
@@ -46,5 +46,5 @@ class SubstituteCracker(Cracker):
         return Result(key, best_score)
 
     @override
-    def crack(self, ciphertext: tuple[int, ...]) -> Generator[Result]:
+    def crack(self, ciphertext: Sequence[int]) -> Generator[Result]:
         return (self.climb(ciphertext) for _ in range(self.restarts))

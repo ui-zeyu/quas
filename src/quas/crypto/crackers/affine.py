@@ -1,11 +1,11 @@
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from typing import override
 
 from quas.crypto.base import BruteForceCracker
 from quas.crypto.ciphers import AffineCipher, AffineKey
 
 
-class AffineCracker(BruteForceCracker[AffineKey]):
+class AffineCracker(BruteForceCracker[AffineKey, Sequence[int]]):
     @override
     def cipher(self, key: AffineKey) -> AffineCipher:
         return AffineCipher(key)

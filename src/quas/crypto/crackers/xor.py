@@ -4,15 +4,22 @@ from typing import override
 import numpy as np
 
 from quas.analysis import english_upper
-from quas.crypto.base import ByteCracker, Result
+from quas.crypto.base import BruteForceCracker, Result
 from quas.crypto.ciphers.xor import XorCipher, XorKey
 
 
-class XorCracker(ByteCracker):
+class XorCracker(BruteForceCracker[XorKey, bytes]):
+    @override
+    def cipher(self, key: XorKey) -> XorCipher:
+        raise NotImplementedError
+
+    @override
+    def keyspace(self) -> Generator[XorKey]:
+        return (XorKey(bytes([x])) for x in range(256))
+
     @override
     def crack(self, ciphertext: bytes) -> Generator[Result[XorKey]]:
-        for x in range(0x100):
-            key = XorKey(bytes([x]))
+        for key in self.keyspace():
             cipher = XorCipher(key)
             plaintext = cipher.decrypt(ciphertext)
             text = plaintext.decode(errors="ignore").upper()

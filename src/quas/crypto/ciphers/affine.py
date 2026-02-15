@@ -1,6 +1,6 @@
 from typing import override
 
-from quas.crypto.base import Cipher, Key
+from quas.crypto.base import Key, SubstituteCipher
 
 
 class AffineKey(Key):
@@ -9,7 +9,7 @@ class AffineKey(Key):
         self.b = b
 
 
-class AffineCipher(Cipher):
+class AffineCipher(SubstituteCipher):
     MOD_INVERSES: dict[int, int] = {
         1: 1,
         3: 9,

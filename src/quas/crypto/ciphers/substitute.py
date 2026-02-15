@@ -1,9 +1,10 @@
 from collections import UserList
+from collections.abc import Sequence
 from random import Random
 from typing import Self, override
 
 from quas.analysis.alphabet import Alphabet
-from quas.crypto.base import Cipher, Key
+from quas.crypto.base import Key, SubstituteCipher
 
 
 class SubstituteKey(UserList, Key):
@@ -20,7 +21,7 @@ class SubstituteKey(UserList, Key):
         self.data[x], self.data[y] = self.data[y], self.data[x]
 
 
-class SubstitutionCipher(Cipher):
+class SubstitutionCipher(SubstituteCipher):
     def __init__(self, calphabet: Alphabet, key: SubstituteKey) -> None:
         self.key: SubstituteKey = key
         self._calphabet: Alphabet = calphabet
@@ -34,5 +35,5 @@ class SubstitutionCipher(Cipher):
         return self.key[x]
 
     @override
-    def decrypt(self, ciphertext: tuple[int, ...]) -> tuple[int, ...]:
+    def decrypt(self, ciphertext: Sequence[int]) -> tuple[int, ...]:
         return tuple(self.key[x] for x in ciphertext)

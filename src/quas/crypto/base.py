@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from typing import NamedTuple, override
 
 import numpy as np
@@ -15,18 +15,30 @@ class Result[K: Key](NamedTuple):
     score: float
 
 
-class Cipher(ABC):
+class Cipher[CT](ABC):
+    @abstractmethod
+    def decrypt(self, ciphertext: CT) -> CT:
+        raise NotImplementedError
+
+
+class ByteCipher(Cipher[bytes]):
+    def decrypt_str(self, ciphertext: bytes) -> str:
+        return self.decrypt(ciphertext).decode()
+
+
+class SubstituteCipher(Cipher[Sequence[int]]):
+    @abstractmethod
+    def decrypt_letter(self, x: int) -> int:
+        raise NotImplementedError
+
     def calphabet(self) -> Alphabet:
         return english_upper
 
     def palphabet(self) -> Alphabet:
         return english_upper
 
-    @abstractmethod
-    def decrypt_letter(self, x: int) -> int:
-        raise NotImplementedError
-
-    def decrypt(self, ciphertext: tuple[int, ...]) -> tuple[int, ...]:
+    @override
+    def decrypt(self, ciphertext: Sequence[int]) -> Sequence[int]:
         return tuple(self.decrypt_letter(x) for x in ciphertext)
 
     def decrypt_str(self, ciphertext: str) -> str:
@@ -43,34 +55,24 @@ class Cipher(ABC):
         return "".join(plaintext)
 
 
-class ByteCipher(ABC):
+class ShiftCipher(Cipher[Sequence[str]]):
     @abstractmethod
-    def decrypt(self, ciphertext: bytes) -> bytes:
-        raise NotImplementedError
-
-    def decrypt_str(self, ciphertext: bytes, encoding: str = "utf-8") -> str:
-        return self.decrypt(ciphertext).decode(encoding, errors="replace")
+    def decrypt_str(self, ciphertext: str) -> str:
+        ciphertext: Sequence[str] = tuple(ciphertext)
+        return "".join(self.decrypt(ciphertext))
 
 
-class Cracker(ABC):
+class Cracker[K: Key, CT](ABC):
     CHARACTERIZER: Characterizer = quadgram
 
     @abstractmethod
-    def crack(self, ciphertext: tuple[int, ...]) -> Generator[Result]:
+    def crack(self, ciphertext: CT) -> Generator[Result[K]]:
         raise NotImplementedError
 
 
-class ByteCracker(ABC):
-    CHARACTERIZER: Characterizer = quadgram
-
+class BruteForceCracker[K: Key, CT](Cracker[K, CT]):
     @abstractmethod
-    def crack(self, ciphertext: bytes) -> Generator[Result]:
-        raise NotImplementedError
-
-
-class BruteForceCracker[K: Key](Cracker):
-    @abstractmethod
-    def cipher(self, key: K) -> Cipher:
+    def cipher(self, key: K) -> Cipher[CT]:
         raise NotImplementedError
 
     @abstractmethod
@@ -78,7 +80,7 @@ class BruteForceCracker[K: Key](Cracker):
         raise NotImplementedError
 
     @override
-    def crack(self, ciphertext: tuple[int, ...]) -> Generator[Result[K]]:
+    def crack(self, ciphertext: CT) -> Generator[Result[K]]:
         for key in self.keyspace():
             cipher = self.cipher(key)
             plaintext = cipher.decrypt(ciphertext)
