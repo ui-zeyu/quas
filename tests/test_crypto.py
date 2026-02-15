@@ -8,7 +8,9 @@ from quas.crypto.affine import crack as affine_command
 from quas.crypto.caesar import crack as caesar_command
 from quas.crypto.ciphers.affine import AffineCipher, AffineKey
 from quas.crypto.ciphers.caesar import CaesarCipher, CaesarKey
-from quas.crypto.crackers import CaesarCracker
+from quas.crypto.ciphers.railfence import RailFenceCipher, RailFenceKey
+from quas.crypto.crackers import CaesarCracker, RailFenceCracker
+from quas.crypto.railfence import crack as railfence_command
 
 
 def test_mod_inverses():
@@ -194,5 +196,96 @@ def test_caesar_command_with_top():
     runner = CliRunner()
     ctx_obj: ContextObject = {"console": Console(), "debug": False}
     result = runner.invoke(caesar_command, ["--top", "5", "KHOOR"], obj=ctx_obj)
+    assert result.exit_code == 0
+    assert "Score" in result.output
+
+
+def test_railfence_decrypt_rails_2():
+    ciphertext = "HLOWRDEL OL"
+    rails = 2
+    cipher = RailFenceCipher(RailFenceKey(rails))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLO WORLD"
+
+
+def test_railfence_decrypt_rails_3():
+    ciphertext = "HOREL OLLWD"
+    rails = 3
+    cipher = RailFenceCipher(RailFenceKey(rails))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLO WORLD"
+
+
+def test_railfence_decrypt_preserves_non_alpha():
+    ciphertext = "HLO OLEL,WRD"
+    rails = 2
+    cipher = RailFenceCipher(RailFenceKey(rails))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLO, WORLD"
+    assert "," in plaintext
+    assert " " in plaintext
+
+
+def test_railfence_decrypt_str():
+    ciphertext = "HLOWRDEL OL"
+    rails = 2
+    cipher = RailFenceCipher(RailFenceKey(rails))
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "HELLO WORLD"
+
+
+def test_railfence_decrypt_edge_case_single_rail():
+    ciphertext = "HELLO"
+    rails = 1
+    cipher = RailFenceCipher(RailFenceKey(rails))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLO"
+
+
+def test_railfence_decrypt_edge_case_short_text():
+    ciphertext = "H"
+    rails = 2
+    cipher = RailFenceCipher(RailFenceKey(rails))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "H"
+
+
+def test_railfence_crack():
+    ciphertext = "HLOWRDEL OL"
+    cracker = RailFenceCracker()
+    results = list(cracker.crack(ciphertext))
+    assert len(results) == 4
+    assert all(isinstance(r.key, RailFenceKey) for r in results)
+    assert all(2 <= r.key.rails <= 5 for r in results)
+    assert all(isinstance(r.score, float) for r in results)
+
+
+def test_railfence_crack_find_best():
+    ciphertext = "HLOWRDEL OL"
+    cracker = RailFenceCracker()
+    results = list(cracker.crack(ciphertext))
+    best = max(results, key=lambda x: x.score)
+    assert best.key.rails == 2
+    cipher = RailFenceCipher(best.key)
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "HELLO WORLD"
+
+
+def test_railfence_command():
+    runner = CliRunner()
+    ctx_obj: ContextObject = {"console": Console(), "debug": False}
+    result = runner.invoke(railfence_command, ["HLOWRDEL OL"], obj=ctx_obj)
+    assert result.exit_code == 0
+    assert "Score" in result.output
+    assert "Rails" in result.output
+    assert "Plaintext" in result.output
+
+
+def test_railfence_command_with_top():
+    runner = CliRunner()
+    ctx_obj: ContextObject = {"console": Console(), "debug": False}
+    result = runner.invoke(
+        railfence_command, ["--top", "5", "HLOWRDEL OL"], obj=ctx_obj
+    )
     assert result.exit_code == 0
     assert "Score" in result.output

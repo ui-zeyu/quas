@@ -1,6 +1,6 @@
 import click
 
-from quas.crypto import affine, analyse, caesar, substitute, xor
+from quas.crypto import affine, analyse, caesar, railfence, substitute, xor
 
 
 @click.group()
@@ -10,5 +10,6 @@ def app() -> None: ...
 app.add_command(affine.crack, "affine")
 app.add_command(analyse.analyse, "analyse")
 app.add_command(caesar.crack, "caesar")
+app.add_command(railfence.crack, "railfence")
 app.add_command(substitute.crack, "sub")
 app.add_command(xor.crack, "xor")

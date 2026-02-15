@@ -55,10 +55,8 @@ class SubstituteCipher(Cipher[Sequence[int]]):
         return "".join(plaintext)
 
 
-class ShiftCipher(Cipher[Sequence[str]]):
-    @abstractmethod
+class ShiftCipher(Cipher[str]):
     def decrypt_str(self, ciphertext: str) -> str:
-        ciphertext: Sequence[str] = tuple(ciphertext)
         return "".join(self.decrypt(ciphertext))
 
 
