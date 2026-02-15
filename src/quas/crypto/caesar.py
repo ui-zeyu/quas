@@ -26,4 +26,4 @@ def crack(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
         cipher = CaesarCipher(key)
         plaintext = cipher.decrypt_str(ciphertext)
         table.add_row(str(key.value), plaintext, str(score))
-    console.print(table)
+    console.print(table, markup=False)

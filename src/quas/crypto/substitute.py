@@ -43,13 +43,11 @@ def crack(
 
     ciphertext = (ciphertext or stdin.read()).strip()
     cindices = calphabet.encode(ciphertext.upper())
-
-    climber = SubstituteCracker(calphabet, restarts)
-    results = climber.crack(cindices)
+    results = SubstituteCracker(calphabet, restarts).crack(cindices)
 
     table = Table("Key", "Plaintext", "Score", box=None)
     for key, score in heapq.nlargest(top, set(results), lambda x: x.score):
         cipher = SubstitutionCipher(calphabet, key)
         plaintext = cipher.decrypt_str(ciphertext)
         table.add_row(cipher.palphabet().decode(key), plaintext, str(score))
-    console.print(table)
+    console.print(table, markup=False)

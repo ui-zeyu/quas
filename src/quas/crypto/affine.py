@@ -26,4 +26,4 @@ def crack(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
         cipher = AffineCipher(key)
         plaintext = cipher.decrypt_str(ciphertext)
         table.add_row(str(key.a), str(key.b), plaintext, str(score))
-    console.print(table)
+    console.print(table, markup=False)

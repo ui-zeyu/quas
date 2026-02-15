@@ -4,9 +4,7 @@ from typing import NamedTuple, override
 
 import numpy as np
 
-from quas.analysis import quadgram
-from quas.analysis.alphabet import Alphabet, english_upper
-from quas.analysis.characterizer import Characterizer
+from quas.analysis import Alphabet, Characterizer, english_upper, quadgram
 
 
 class Key: ...
@@ -45,11 +43,28 @@ class Cipher(ABC):
         return "".join(plaintext)
 
 
+class ByteCipher(ABC):
+    @abstractmethod
+    def decrypt(self, ciphertext: bytes) -> bytes:
+        raise NotImplementedError
+
+    def decrypt_str(self, ciphertext: bytes, encoding: str = "utf-8") -> str:
+        return self.decrypt(ciphertext).decode(encoding, errors="replace")
+
+
 class Cracker(ABC):
     CHARACTERIZER: Characterizer = quadgram
 
     @abstractmethod
     def crack(self, ciphertext: tuple[int, ...]) -> Generator[Result]:
+        raise NotImplementedError
+
+
+class ByteCracker(ABC):
+    CHARACTERIZER: Characterizer = quadgram
+
+    @abstractmethod
+    def crack(self, ciphertext: bytes) -> Generator[Result]:
         raise NotImplementedError
 
 
