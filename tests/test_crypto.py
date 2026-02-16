@@ -8,8 +8,10 @@ from quas.crypto.affine import crack as affine_command
 from quas.crypto.caesar import crack as caesar_command
 from quas.crypto.ciphers.affine import AffineCipher, AffineKey
 from quas.crypto.ciphers.caesar import CaesarCipher, CaesarKey
+from quas.crypto.ciphers.columnar import ColumnarCipher, ColumnarKey
 from quas.crypto.ciphers.railfence import RailFenceCipher, RailFenceKey
-from quas.crypto.crackers import CaesarCracker, RailFenceCracker
+from quas.crypto.columnar import crack as columnar_command
+from quas.crypto.crackers import CaesarCracker, ColumnarCracker, RailFenceCracker
 from quas.crypto.railfence import crack as railfence_command
 
 
@@ -289,3 +291,95 @@ def test_railfence_command_with_top():
     )
     assert result.exit_code == 0
     assert "Score" in result.output
+
+
+def test_columnar_decrypt_cols_4():
+    ciphertext = "HOLEWDLOLR"
+    cols = 4
+    cipher = ColumnarCipher(ColumnarKey(cols))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLOWORLD"
+
+
+def test_columnar_decrypt_cols_3():
+    ciphertext = "HLODEORLWL"
+    cols = 3
+    cipher = ColumnarCipher(ColumnarKey(cols))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLOWORLD"
+
+
+def test_columnar_decrypt_preserves_non_alpha():
+    ciphertext = "HL REOWLL,OD"
+    cols = 3
+    cipher = ColumnarCipher(ColumnarKey(cols))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLO, WORLD"
+    assert "," in plaintext
+    assert " " in plaintext
+
+
+def test_columnar_decrypt_str():
+    ciphertext = "HLOEL"
+    cols = 2
+    cipher = ColumnarCipher(ColumnarKey(cols))
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "HELLO"
+
+
+def test_columnar_decrypt_edge_case_single_col():
+    ciphertext = "HELLO"
+    cols = 1
+    cipher = ColumnarCipher(ColumnarKey(cols))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLO"
+
+
+def test_columnar_decrypt_edge_case_short_text():
+    ciphertext = "HELLO"
+    cols = 10
+    cipher = ColumnarCipher(ColumnarKey(cols))
+    plaintext = cipher.decrypt(ciphertext)
+    assert "".join(plaintext) == "HELLO"
+
+
+def test_columnar_crack():
+    ciphertext = "HOLEWDLOOLRR"
+    cracker = ColumnarCracker()
+    results = list(cracker.crack(ciphertext))
+    assert len(results) > 0
+    assert all(isinstance(r.key, ColumnarKey) for r in results)
+    assert all(r.key.cols >= 2 for r in results)
+    assert all(isinstance(r.score, float) for r in results)
+
+
+def test_columnar_crack_find_best():
+    ciphertext = "HOLEWDLOLR"
+    cracker = ColumnarCracker()
+    results = list(cracker.crack(ciphertext))
+    best = max(results, key=lambda x: x.score)
+    assert best.key.cols == 4
+    cipher = ColumnarCipher(best.key)
+    plaintext = cipher.decrypt_str(ciphertext)
+    assert plaintext == "HELLOWORLD"
+
+
+def test_columnar_command():
+    runner = CliRunner()
+    ctx_obj: ContextObject = {"console": Console(), "debug": False}
+    result = runner.invoke(columnar_command, ["HOLEWDLOLR"], obj=ctx_obj)
+    assert result.exit_code == 0
+    assert "Score" in result.output
+    assert "Cols" in result.output
+    assert "Plaintext" in result.output
+
+
+def test_columnar_command_with_top():
+    runner = CliRunner()
+    ctx_obj: ContextObject = {"console": Console(), "debug": False}
+    result = runner.invoke(columnar_command, ["--top", "5", "HOLEWDLOLR"], obj=ctx_obj)
+    assert result.exit_code == 0
+    assert "Score" in result.output
+
+    assert "Cols" in result.output
+    assert "Plaintext" in result.output
