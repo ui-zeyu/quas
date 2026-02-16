@@ -69,10 +69,10 @@ def analyse(
         ciphertext = b64decode(ciphertext).decode(errors="ignore")
     ciphertext = ciphertext.strip()
 
-    table = Table("Char", "Count", "Percent", box=None, expand=True)
+    table = Table("Char", "Count", "Percent", "Binary", box=None, expand=True)
     for char, count in Counter(ciphertext).most_common():
         percent = count / len(ciphertext) * 100
-        table.add_row(char, str(count), f"{percent:.2f}%")
+        table.add_row(char, str(count), f"{percent:.2f}%", f"{ord(char):08b}")
     console.print(Panel(table, title="Frequency Analysis"))
 
     ciphertext = "".join(x for x in ciphertext if x.isalpha()).upper()
