@@ -21,7 +21,7 @@ class RailFenceCracker(BruteForceCracker[RailFenceKey, str]):
 
     @override
     def crack(self, ciphertext: str) -> Generator[Result[RailFenceKey]]:
-        max_rails = len(ciphertext) // 2
+        max_rails = len(ciphertext) >> 1
         for key in islice(self.keyspace(), max_rails):
             cipher = self.cipher(key)
             plaintext = cipher.decrypt(ciphertext)

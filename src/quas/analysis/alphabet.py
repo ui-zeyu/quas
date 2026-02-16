@@ -1,12 +1,16 @@
+import re
 import string
 from collections.abc import Iterable
 
 
 class Alphabet:
     def __init__(self, alphabet: list[str]):
-        self.alphabet = alphabet
-        self.letters = set(alphabet)
-        self.encoding: dict[str, int] = {c: i for i, c in enumerate(alphabet)}
+        self.alphabet: list[str] = sorted(alphabet, key=len, reverse=True)
+        self.letters: set[str] = set(self.alphabet)
+        self.encoding: dict[str, int] = {c: i for i, c in enumerate(self.alphabet)}
+
+        pattern_str = "|".join(map(re.escape, self.alphabet))
+        self.pattern: re.Pattern[str] = re.compile(pattern_str)
 
     def __contains__(self, c: str) -> bool:
         return c in self.letters
@@ -15,13 +19,13 @@ class Alphabet:
         return len(self.alphabet)
 
     def __str__(self):
-        return "".join(self.alphabet)
+        return " ".join(self.alphabet)
 
     def encode_letter(self, char: str) -> int | None:
         return self.encoding.get(char)
 
-    def encode(self, chars: Iterable[str]) -> tuple[int, ...]:
-        return tuple(filter(lambda x: x is not None, map(self.encode_letter, chars)))
+    def encode(self, chars: str) -> tuple[int, ...]:
+        return tuple(self.encoding[m.group()] for m in self.pattern.finditer(chars))
 
     def decode_letter(self, idx: int) -> str:
         return self.alphabet[idx]

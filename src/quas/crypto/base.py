@@ -41,6 +41,8 @@ class SubstituteCipher(Cipher[Sequence[int]]):
     def decrypt(self, ciphertext: Sequence[int]) -> Sequence[int]:
         return tuple(self.decrypt_letter(x) for x in ciphertext)
 
+
+class SingleSubstituteCipher(SubstituteCipher):
     def decrypt_str(self, ciphertext: str) -> str:
         plaintext = []
         for c in ciphertext:
@@ -53,6 +55,18 @@ class SubstituteCipher(Cipher[Sequence[int]]):
                 cc = c
             plaintext.append(cc)
         return "".join(plaintext)
+
+
+class MultiSubstituteCipher(SubstituteCipher):
+    def decrypt_str(self, ciphertext: str) -> str:
+        return self.calphabet().pattern.sub(
+            lambda m: (
+                self.palphabet().decode_letter(self.decrypt_letter(x))
+                if (x := self.calphabet().encode_letter(m.group()))
+                else m.group()
+            ),
+            ciphertext,
+        )
 
 
 class ShiftCipher(Cipher[str]):

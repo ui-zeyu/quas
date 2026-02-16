@@ -4,7 +4,7 @@ from random import Random
 from typing import Self, override
 
 from quas.analysis.alphabet import Alphabet
-from quas.crypto.base import Key, SubstituteCipher
+from quas.crypto.base import Key, MultiSubstituteCipher
 
 
 class SubstituteKey(UserList, Key):
@@ -21,7 +21,7 @@ class SubstituteKey(UserList, Key):
         self.data[x], self.data[y] = self.data[y], self.data[x]
 
 
-class SubstitutionCipher(SubstituteCipher):
+class SubstitutionCipher(MultiSubstituteCipher):
     def __init__(self, calphabet: Alphabet, key: SubstituteKey) -> None:
         self.key: SubstituteKey = key
         self._calphabet: Alphabet = calphabet

@@ -18,7 +18,7 @@ from quas.crypto.crackers import SubstituteCracker
     "--calphabet",
     type=str,
     default=string.ascii_uppercase,
-    help="Cipher alphabet (default: A-Z)",
+    help="Cipher alphabet",
 )
 @click.option(
     "-r",
@@ -41,8 +41,8 @@ def crack(
     calphabet: list[str] = calphabet.split() if " " in calphabet else list(calphabet)
     calphabet: Alphabet = Alphabet(calphabet)
 
-    ciphertext = (ciphertext or stdin.read()).strip()
-    cindices = calphabet.encode(ciphertext.upper())
+    ciphertext = (ciphertext or stdin.read()).strip().upper()
+    cindices = calphabet.encode(ciphertext)
     results = SubstituteCracker(calphabet, restarts).crack(cindices)
 
     table = Table("Key", "Plaintext", "Score", box=None)

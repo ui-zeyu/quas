@@ -1,6 +1,6 @@
 from typing import override
 
-from quas.crypto.base import Key, SubstituteCipher
+from quas.crypto.base import Key, SingleSubstituteCipher
 
 
 class CaesarKey(Key):
@@ -8,7 +8,7 @@ class CaesarKey(Key):
         self.value = value % 26
 
 
-class CaesarCipher(SubstituteCipher):
+class CaesarCipher(SingleSubstituteCipher):
     def __init__(self, key: CaesarKey) -> None:
         self.key = key
 

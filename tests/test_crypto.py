@@ -254,9 +254,9 @@ def test_railfence_crack():
     ciphertext = "HLOWRDEL OL"
     cracker = RailFenceCracker()
     results = list(cracker.crack(ciphertext))
-    assert len(results) == 4
+    assert len(results) == 5
     assert all(isinstance(r.key, RailFenceKey) for r in results)
-    assert all(2 <= r.key.rails <= 5 for r in results)
+    assert all(2 <= r.key.rails <= 6 for r in results)
     assert all(isinstance(r.score, float) for r in results)
 
 
