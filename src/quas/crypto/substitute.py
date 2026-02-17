@@ -13,6 +13,7 @@ from quas.crypto.crackers import SubstituteCracker
 
 @click.command(help="Crack substitution cipher using hill climbing with N-gram scoring")
 @click.pass_obj
+@click.argument("ciphertext", type=str, required=False)
 @click.option(
     "-c",
     "--calphabet",
@@ -28,13 +29,12 @@ from quas.crypto.crackers import SubstituteCracker
     help="Number of hill climbing restarts",
 )
 @click.option("-t", "--top", type=int, default=3, help="Show top N results")
-@click.argument("ciphertext", type=str, required=False)
 def crack(
     ctx: ContextObject,
+    ciphertext: str | None,
     calphabet: str,
     restarts: int,
     top: int,
-    ciphertext: str | None,
 ) -> None:
     console = ctx["console"]
 
