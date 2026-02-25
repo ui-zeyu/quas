@@ -20,4 +20,3 @@ wheels/
 # Development files
 AGENTS.md
 uv.lock
-*.spec

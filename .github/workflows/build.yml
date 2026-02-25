@@ -6,6 +6,9 @@ on:
             - "v*"
     workflow_dispatch:
 
+permissions:
+    contents: write
+
 jobs:
     build:
         name: Build on ${{ matrix.os }}
@@ -13,21 +16,45 @@ jobs:
         strategy:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
+                include:
+                    - os: ubuntu-latest
+                      raw_name: quas
+                      release_name: quas-linux
+                    - os: windows-latest
+                      raw_name: quas.exe
+                      release_name: quas-windows.exe
+                    - os: macos-latest
+                      raw_name: quas
+                      release_name: quas-macos
+
         steps:
             - name: Checkout
               uses: actions/checkout@v6
+
             - name: Install uv
               uses: astral-sh/setup-uv@v7
               with:
                   enable-cache: true
+
             - name: Install Python
               run: uv python install 3.14
+
             - name: Sync and install dependencies
               run: uv sync
+
             - name: Build with PyInstaller
-              run: uv run pyinstaller -F -n quas src/quas/__init__.py
-            - name: Upload build artifacts
-              uses: actions/upload-artifact@v4
+              run: uv run pyinstaller --clean quas.spec
+
+            - name: Rename Dist (Linux / macOS)
+              if: runner.os != 'Windows'
+              run: mv dist/${{ matrix.raw_name }} dist/${{ matrix.release_name }}
+
+            - name: Rename Dist (Windows)
+              if: runner.os == 'Windows'
+              run: Rename-Item -Path "dist\${{ matrix.raw_name }}" -NewName "${{ matrix.release_name }}"
+
+            - name: Publish to GitHub Release
+              uses: softprops/action-gh-release@v2
               with:
-                  name: quas-${{ matrix.os }}
-                  path: dist/*
+                  files: dist/${{ matrix.release_name }}
+                  generate_release_notes: true
