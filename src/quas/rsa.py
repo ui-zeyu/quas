@@ -34,8 +34,7 @@ def small_e(n: mpz, e: mpz, c: mpz, limit: int) -> mpz | None:
         m, exact = iroot(cc, e)
         if exact:
             return m
-    else:
-        return None
+    return None
 
 
 def rabin(p: mpz, q: mpz, c: mpz) -> tuple[mpz, mpz, mpz, mpz]:
@@ -160,8 +159,7 @@ def known_dp_or_dq(n: mpz, e: mpz, dp: mpz, c: mpz, limit: int) -> mpz | None:
             p = (e * dp - mpz(1)) // k + mpz(1)
             if n % p == 0:
                 return known_p_q_e(p, n // p, e, c)
-    else:
-        return None
+    return None
 
 
 def dispatcher(
@@ -191,10 +189,29 @@ def dispatcher(
             if m := known_dp_or_dq(n, e, dq, c, limit):
                 yield m
 
+    match p, q, es, cs:
+        case mpz() as p, mpz() as q, [2], [c]:
+            status.update("Rabin decryption")
+            for m in rabin(p, q, c):
+                yield m
+        case mpz() as p, mpz() as q, [e], [c]:
+            n, phi = p * q, (p - mpz(1)) * (q - mpz(1))
+            if (x := gcd(e, phi)) == 1:
+                status.update("Known p and q decryption")
+                yield known_p_q_e(p, q, e, c)
+            else:
+                status.update("Small m decryption")
+                if m := no_d_small_m(n, phi, e, x, c):
+                    yield m
+
     match ns, es, cs:
         case [n], _, [c] if d is not None:
             status.update("Known d decryption")
             yield known_d_n(d, n, c)
+        case [], [e], [c]:
+            status.update("Small e attack")
+            if e < 256 and (m := small_e(mpz(0), e, c, 1)):
+                yield m
         case [n], [e], [c]:
             status.update("Wiener attack")
             if e.bit_length() > n.bit_length() // 2 and (d := wiener(n, e)):
@@ -226,21 +243,6 @@ def dispatcher(
             status.update("Hastad broadcast attack")
             if m := hastad_broadcast(ns, cs, e):
                 yield m
-
-    match p, q, es, cs:
-        case mpz() as p, mpz() as q, [2], [c]:
-            status.update("Rabin decryption")
-            for m in rabin(p, q, c):
-                yield m
-        case mpz() as p, mpz() as q, [e], [c]:
-            n, phi = p * q, (p - mpz(1)) * (q - mpz(1))
-            if (x := gcd(e, phi)) == 1:
-                status.update("Known p and q decryption")
-                yield known_p_q_e(p, q, e, c)
-            else:
-                status.update("Small m decryption")
-                if m := no_d_small_m(n, phi, e, x, c):
-                    yield m
 
 
 @click.command(help="RSA decryption and analysis tool")
