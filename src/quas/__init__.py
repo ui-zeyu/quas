@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
 
-from quas import behinder, crc, crypto, image, pdf, steg, util, wav
+from quas import behinder, crc, crypto, image, pdf, rsa, steg, util, wav
 from quas.context import ContextObject
 
 CONTEXT_SETTINGS = dict(
@@ -42,7 +42,7 @@ def app(ctx: click.Context, verbose: int, debug: bool) -> None:
 
 
 def main() -> None:
-    for module in (steg, util, image, crc, behinder, pdf, crypto, wav):
+    for module in (steg, util, image, crc, behinder, pdf, crypto, wav, rsa):
         app.add_command(module.app, module.__name__.rsplit(".", 1)[-1])
     app()
 
