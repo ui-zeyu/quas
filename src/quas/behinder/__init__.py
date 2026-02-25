@@ -4,7 +4,7 @@ from quas.behinder.aes import aes
 from quas.behinder.xor import xor
 
 
-@click.group()
+@click.group(help="Behinder webshell tools")
 def app() -> None: ...
 
 

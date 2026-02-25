@@ -7,7 +7,7 @@ from quas.image.lsbaes import lsbaes
 from quas.image.spbwm import spbwm
 
 
-@click.group()
+@click.group(help="Image steganography tools")
 def app() -> None: ...
 
 

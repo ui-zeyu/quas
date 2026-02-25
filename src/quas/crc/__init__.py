@@ -4,7 +4,7 @@ from quas.crc.ihdr import ihdr
 from quas.crc.zip import zip
 
 
-@click.group()
+@click.group(help="CRC and checksum tools")
 def app() -> None: ...
 
 

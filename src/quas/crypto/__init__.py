@@ -3,7 +3,7 @@ import click
 from quas.crypto import affine, analyse, caesar, columnar, railfence, substitute, xor
 
 
-@click.group()
+@click.group(help="Cryptographic ciphers and crackers")
 def app() -> None: ...
 
 

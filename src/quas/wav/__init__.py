@@ -3,7 +3,7 @@ import click
 from quas.wav.frequency import frequency
 
 
-@click.group()
+@click.group(help="Audio waveform analysis tools")
 def app() -> None: ...
 
 
