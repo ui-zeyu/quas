@@ -40,21 +40,13 @@ jobs:
               run: uv python install 3.14
 
             - name: Sync and install dependencies
-              run: uv sync
+              run: uv sync --no-dev
 
             - name: Build with PyInstaller
               run: uv run pyinstaller --clean quas.spec
 
-            - name: Rename Dist (Linux / macOS)
-              if: runner.os != 'Windows'
-              run: mv dist/${{ matrix.raw_name }} dist/${{ matrix.release_name }}
-
-            - name: Rename Dist (Windows)
-              if: runner.os == 'Windows'
-              run: Rename-Item -Path "dist\${{ matrix.raw_name }}" -NewName "${{ matrix.release_name }}"
-
-            - name: Publish to GitHub Release
-              uses: softprops/action-gh-release@v2
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v4
               with:
-                  files: dist/${{ matrix.release_name }}
-                  generate_release_notes: true
+                  name: ${{ matrix.release_name }}
+                  path: dist/${{ matrix.raw_name }}
