@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Iterator
 from typing import override
 
 import numpy as np
@@ -14,11 +14,11 @@ class XorCracker(BruteForceCracker[XorKey, bytes]):
         raise NotImplementedError
 
     @override
-    def keyspace(self) -> Generator[XorKey]:
+    def keyspace(self) -> Iterator[XorKey]:
         return (XorKey(bytes([x])) for x in range(256))
 
     @override
-    def crack(self, ciphertext: bytes) -> Generator[Result[XorKey]]:
+    def crack(self, ciphertext: bytes) -> Iterator[Result[XorKey]]:
         for key in self.keyspace():
             cipher = XorCipher(key)
             plaintext = cipher.decrypt(ciphertext)

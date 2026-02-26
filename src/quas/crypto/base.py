@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Generator, Sequence
+from collections.abc import Iterator, Sequence
 from typing import NamedTuple, override
 
 import numpy as np
@@ -78,7 +78,7 @@ class Cracker[K: Key, CT](ABC):
     CHARACTERIZER: Characterizer = quadgram
 
     @abstractmethod
-    def crack(self, ciphertext: CT) -> Generator[Result[K]]:
+    def crack(self, ciphertext: CT) -> Iterator[Result[K]]:
         raise NotImplementedError
 
 
@@ -88,11 +88,11 @@ class BruteForceCracker[K: Key, CT](Cracker[K, CT]):
         raise NotImplementedError
 
     @abstractmethod
-    def keyspace(self) -> Generator[K]:
+    def keyspace(self) -> Iterator[K]:
         raise NotImplementedError
 
     @override
-    def crack(self, ciphertext: CT) -> Generator[Result[K]]:
+    def crack(self, ciphertext: CT) -> Iterator[Result[K]]:
         for key in self.keyspace():
             cipher = self.cipher(key)
             plaintext = cipher.decrypt(ciphertext)

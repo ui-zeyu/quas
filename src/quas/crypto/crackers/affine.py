@@ -1,4 +1,4 @@
-from collections.abc import Generator, Sequence
+from collections.abc import Iterator, Sequence
 from typing import override
 
 from quas.crypto.base import BruteForceCracker
@@ -11,7 +11,7 @@ class AffineCracker(BruteForceCracker[AffineKey, Sequence[int]]):
         return AffineCipher(key)
 
     @override
-    def keyspace(self) -> Generator[AffineKey]:
+    def keyspace(self) -> Iterator[AffineKey]:
         for a in AffineCipher.MOD_INVERSES:
             for b in range(26):
                 yield AffineKey(a, b)

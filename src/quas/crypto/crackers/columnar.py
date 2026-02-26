@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Iterator
 from itertools import count, islice
 from typing import override
 
@@ -15,12 +15,12 @@ class ColumnarCracker(BruteForceCracker[ColumnarKey, str]):
         return ColumnarCipher(key)
 
     @override
-    def keyspace(self) -> Generator[ColumnarKey]:
+    def keyspace(self) -> Iterator[ColumnarKey]:
         for x in count(2):
             yield ColumnarKey(x)
 
     @override
-    def crack(self, ciphertext: str) -> Generator[Result[ColumnarKey]]:
+    def crack(self, ciphertext: str) -> Iterator[Result[ColumnarKey]]:
         max_cols = len(ciphertext) >> 1
         for key in islice(self.keyspace(), max_cols):
             cipher = self.cipher(key)

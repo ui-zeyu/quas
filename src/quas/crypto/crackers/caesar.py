@@ -1,4 +1,4 @@
-from collections.abc import Generator, Sequence
+from collections.abc import Iterator, Sequence
 from typing import override
 
 from quas.crypto.base import BruteForceCracker
@@ -11,6 +11,6 @@ class CaesarCracker(BruteForceCracker[CaesarKey, Sequence[int]]):
         return CaesarCipher(key)
 
     @override
-    def keyspace(self) -> Generator[CaesarKey]:
+    def keyspace(self) -> Iterator[CaesarKey]:
         for x in range(26):
             yield CaesarKey(x)

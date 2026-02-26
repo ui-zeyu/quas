@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Iterator
 from itertools import count, islice
 from typing import override
 
@@ -15,12 +15,12 @@ class RailFenceCracker(BruteForceCracker[RailFenceKey, str]):
         return RailFenceCipher(key)
 
     @override
-    def keyspace(self) -> Generator[RailFenceKey]:
+    def keyspace(self) -> Iterator[RailFenceKey]:
         for x in count(2):
             yield RailFenceKey(x)
 
     @override
-    def crack(self, ciphertext: str) -> Generator[Result[RailFenceKey]]:
+    def crack(self, ciphertext: str) -> Iterator[Result[RailFenceKey]]:
         max_rails = len(ciphertext) >> 1
         for key in islice(self.keyspace(), max_rails):
             cipher = self.cipher(key)

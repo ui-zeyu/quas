@@ -1,4 +1,4 @@
-from collections.abc import Generator, Sequence
+from collections.abc import Iterator, Sequence
 from random import Random
 from typing import override
 
@@ -46,5 +46,5 @@ class SubstituteCracker(Cracker[SubstituteKey, Sequence[int]]):
         return Result(key, best_score)
 
     @override
-    def crack(self, ciphertext: Sequence[int]) -> Generator[Result]:
+    def crack(self, ciphertext: Sequence[int]) -> Iterator[Result]:
         return (self.climb(ciphertext) for _ in range(self.restarts))

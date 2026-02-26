@@ -1,6 +1,6 @@
 [project]
 name = "quas"
-version = "0.24.0"
+version = "0.25.0"
 description = "Steganography and cryptanalysis CLI toolkit"
 readme = "README.md"
 authors = [
@@ -16,6 +16,7 @@ dependencies = [
     "pikepdf>=10.3.0",
     "pillow>=12.1.0",
     "pycryptodomex>=3.23.0",
+    "pyparsing>=3.3.2",
     "python-magic>=0.4.27",
     "random2>=1.0.2",
     "rich>=14.3.2",
