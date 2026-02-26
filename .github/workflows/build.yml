@@ -21,7 +21,7 @@ jobs:
                       raw_name: quas
                       release_name: quas-linux
                     - os: windows-latest
-                      raw_name: quas.exe
+                      raw_name: quas
                       release_name: quas-windows.exe
                     - os: macos-latest
                       raw_name: quas
@@ -40,10 +40,10 @@ jobs:
               run: uv python install 3.14
 
             - name: Sync and install dependencies
-              run: uv sync --no-dev
+              run: uv sync
 
-            - name: Build with PyInstaller
-              run: uv run pyinstaller --clean quas.spec
+            - name: Build with Nuitka
+              run: uv run build/build.py
 
             - name: Upload Artifact
               uses: actions/upload-artifact@v4

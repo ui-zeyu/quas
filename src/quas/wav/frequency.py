@@ -1,8 +1,9 @@
 from pathlib import Path
+from typing import cast
 
 import click
-import librosa
 import numpy as np
+import soundfile as sf
 
 from quas.context import ContextObject
 
@@ -21,7 +22,8 @@ def freqs_and_magnitude(y: np.ndarray, sr: float) -> tuple[np.ndarray, np.ndarra
 def frequency(ctx: ContextObject, infile: Path, top: int) -> None:
     console = ctx["console"]
 
-    y, sr = librosa.load(infile, sr=None, offset=0.0)
+    y, sr = cast(tuple[np.ndarray, int], sf.read(infile))
+    y = y.mean(axis=1) if y.ndim > 1 else y
 
     console.print(f"Sample rate: {sr} Hz")
     console.print(f"Audio length: {len(y)} samples")

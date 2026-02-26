@@ -1,6 +1,6 @@
 [project]
 name = "quas"
-version = "0.22.1"
+version = "0.24.0"
 description = "Steganography and cryptanalysis CLI toolkit"
 readme = "README.md"
 authors = [
@@ -11,16 +11,16 @@ dependencies = [
     "click>=8.3.1",
     "gmpy2>=2.2.2",
     "gmpy2-stubs>=2.2.1.5",
-    "librosa>=0.11.0",
     "matplotlib>=3.10.8",
     "numpy>=2.3",
+    "pikepdf>=10.3.0",
     "pillow>=12.1.0",
     "pycryptodomex>=3.23.0",
-    "pymupdf>=1.26.7",
     "python-magic>=0.4.27",
     "random2>=1.0.2",
     "rich>=14.3.2",
     "scipy>=1.17.0",
+    "soundfile>=0.13.1",
     "toolz>=1.1.0",
 ]
 
@@ -40,7 +40,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "pyinstaller>=6.18.0",
+    "nuitka[onefile]>=4.0.1",
     "pytest>=9.0.2",
     "ruff>=0.14.14",
 ]

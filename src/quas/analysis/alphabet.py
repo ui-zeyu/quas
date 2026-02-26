@@ -5,7 +5,7 @@ from collections.abc import Iterable
 
 class Alphabet:
     def __init__(self, alphabet: list[str]):
-        self.alphabet: list[str] = sorted(alphabet, key=len, reverse=True)
+        self.alphabet: list[str] = sorted(alphabet, key=len, reverse=True)  # ty:ignore[invalid-assignment]
         self.letters: set[str] = set(self.alphabet)
         self.encoding: dict[str, int] = {c: i for i, c in enumerate(self.alphabet)}
 
