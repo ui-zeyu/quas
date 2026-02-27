@@ -1,10 +1,7 @@
-import base64
-import binascii
 import mmap
 import re
-import zlib
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from enum import Enum, auto
 from pathlib import Path
 from typing import override
@@ -17,6 +14,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from quas.context import ContextObject
+from quas.pdf.decoders import DecoderRegistry
 
 MAX_CONTENT_LENGTH = 1000
 
@@ -25,7 +23,7 @@ class ScanStrategy(Enum):
     NORMAL = auto()
     REGEX = auto()
 
-    def to_scanner(self) -> PDFStreamScanner:
+    def to_scanner(self) -> StreamScanner:
         match self:
             case ScanStrategy.NORMAL:
                 return NormalScanner()
@@ -33,13 +31,13 @@ class ScanStrategy(Enum):
                 return RegexScanner()
 
 
-class PDFStreamScanner(ABC):
+class StreamScanner(ABC):
     @abstractmethod
     def scan(self, infile: Path, console: Console) -> Iterator[tuple[str, bytes]]:
         raise NotImplementedError
 
 
-class NormalScanner(PDFStreamScanner):
+class NormalScanner(StreamScanner):
     @override
     def scan(self, infile: Path, console: Console) -> Iterator[tuple[str, bytes]]:
         with pikepdf.Pdf.open(infile) as doc:
@@ -51,74 +49,41 @@ class NormalScanner(PDFStreamScanner):
                 yield str(obj.objgen), data
 
 
-def dict_parser() -> pp.ParserElement:
-    LBRACK, RBRACK = map(pp.Suppress, "[]")
-    LDICT, RDICT = map(pp.Suppress, ["<<", ">>"])
+class RegexScanner(StreamScanner):
+    @staticmethod
+    def dict_parser() -> pp.ParserElement:
+        LBRACK, RBRACK = map(pp.Suppress, "[]")
+        LDICT, RDICT = map(pp.Suppress, ["<<", ">>"])
 
-    dict_key = pp.Combine("/" + pp.Word(re.sub(r"/\[\]<>", "", pp.printables)))
-    dict_value = pp.Forward()
+        dict_key = pp.Combine("/" + pp.Word(re.sub(r"/\[\]<>", "", pp.printables)))
+        dict_value = pp.Forward()
 
-    dict_number = pp.common.number
-    dict_bool = pp.Keyword("true") | pp.Keyword("false")
-    dict_null = pp.Keyword("null")
-    dict_string = pp.nested_expr("(", ")") | pp.nested_expr(
-        "<",
-        ">",
-        ignoreExpr=None,
-    )
-    dict_reference = pp.Group(pp.Word(pp.nums) + pp.Word(pp.nums) + pp.Keyword("R"))
-    dict_array = pp.Group(LBRACK + pp.ZeroOrMore(dict_value) + RBRACK)
-    dict_entry = pp.Group(dict_key + dict_value)
-    pdf_dict = pp.Dict(LDICT + pp.ZeroOrMore(dict_entry) + RDICT)
+        dict_number = pp.common.number
+        dict_bool = pp.Keyword("true") | pp.Keyword("false")
+        dict_null = pp.Keyword("null")
+        dict_string = pp.nested_expr("(", ")") | pp.nested_expr(
+            "<",
+            ">",
+            ignore_expr=None,
+        )
+        dict_reference = pp.Group(pp.Word(pp.nums) + pp.Word(pp.nums) + pp.Keyword("R"))
+        dict_array = pp.Group(LBRACK + pp.ZeroOrMore(dict_value) + RBRACK)
+        dict_entry = pp.Group(dict_key + dict_value)
+        pdf_dict = pp.Dict(LDICT + pp.ZeroOrMore(dict_entry) + RDICT)
 
-    dict_value <<= (
-        dict_key
-        | dict_reference
-        | dict_number
-        | dict_bool
-        | dict_null
-        | dict_string
-        | dict_array
-        | pdf_dict
-    )
+        dict_value <<= (
+            dict_key
+            | dict_reference
+            | dict_number
+            | dict_bool
+            | dict_null
+            | dict_string
+            | dict_array
+            | pdf_dict
+        )
 
-    return pdf_dict
+        return pdf_dict
 
-
-DECODERS: dict[str, Callable[[bytes], bytes]] = {}
-
-
-def register_decoder(filter: str) -> Callable:
-    def decorator(func: Callable[[bytes], bytes]):
-        global DECODERS
-        DECODERS[filter] = func
-        return func
-
-    return decorator
-
-
-@register_decoder("/Fl")
-@register_decoder("/FlateDecode")
-def decode_flate(data: bytes) -> bytes:
-    return zlib.decompress(data)
-
-
-@register_decoder("/AHx")
-@register_decoder("/ASCIIHexDecode")
-def decode_asciihex(data: bytes) -> bytes:
-    data = re.sub(rb"[>\s]", b"", data)
-    data = data if len(data) % 2 == 0 else data + b"0"
-    return binascii.unhexlify(data)
-
-
-@register_decoder("/A85")
-@register_decoder("/ASCII85Decode")
-def decode_ascii85(data: bytes) -> bytes:
-    data = re.sub(rb"[<~>\s]", b"", data)
-    return base64.a85decode(data)
-
-
-class RegexScanner(PDFStreamScanner):
     OBJ_PATTERN: re.Pattern = re.compile(
         rb"(\d+\s+\d+)\s+obj\s*(<<.*?>>)\s*(stream|endobj)\b",
         re.DOTALL,
@@ -157,12 +122,7 @@ class RegexScanner(PDFStreamScanner):
                         continue
 
                 if filters := ast.get("/Filter"):
-                    filters = (filters,) if isinstance(filters, str) else tuple(filters)
-                    for filter in filters:
-                        try:
-                            stream = DECODERS[filter](stream)
-                        except binascii.Error, zlib.error, ValueError:
-                            break
+                    stream = DecoderRegistry.decode(stream, filters)
                 yield objgen.decode(), stream
 
 
@@ -174,7 +134,7 @@ class RegexScanner(PDFStreamScanner):
     "--strategy",
     type=click.Choice(ScanStrategy, case_sensitive=False),
     default=ScanStrategy.NORMAL,
-    help="Scanning strategy: normal (library-based) or regex (brute-force with decoding)",
+    help="Scanning strategy: normal or regex",
 )
 def stream(ctx: ContextObject, infile: Path, strategy: ScanStrategy) -> None:
     console = ctx["console"]
