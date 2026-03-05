@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,7 +19,7 @@ class InspectItem:
 
 @dataclass
 class InspectPayload:
-    items: list[InspectItem]
+    items: Sequence[InspectItem]
 
 
 @dataclass

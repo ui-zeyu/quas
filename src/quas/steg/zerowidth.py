@@ -33,7 +33,7 @@ class ZeroWidthCrackItem:
 
 @dataclass
 class ZeroWidthPayload:
-    items: list[ZeroWidthCrackItem]
+    items: Sequence[ZeroWidthCrackItem]
 
 
 @dataclass

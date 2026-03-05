@@ -1,4 +1,5 @@
 import heapq
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from rich.table import Table
@@ -19,7 +20,7 @@ class AffineCrackItem:
 
 @dataclass
 class AffinePayload:
-    items: list[AffineCrackItem]
+    items: Sequence[AffineCrackItem]
 
 
 @dataclass

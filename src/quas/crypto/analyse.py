@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -24,8 +25,8 @@ class FrequencyStat:
 @dataclass
 class AnalysePayload:
     total_length: int
-    frequencies: list[FrequencyStat]
-    alpha_frequencies: list[FrequencyStat]
+    frequencies: Sequence[FrequencyStat]
+    alpha_frequencies: Sequence[FrequencyStat]
     ioc_score: float
     quadgram_score: float
     alpha_length: int

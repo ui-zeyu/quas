@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,7 +13,7 @@ from quas.core.protocols import CommandResult
 class LsbPayload:
     plane: int
     outfile: Path
-    results: list[bytes]
+    results: Sequence[bytes]
 
 
 @dataclass

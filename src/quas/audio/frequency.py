@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -18,7 +19,7 @@ class FreqItem:
 class FreqPayload:
     sample_rate: int
     top: int
-    items: list[FreqItem]
+    items: Sequence[FreqItem]
 
 
 @dataclass

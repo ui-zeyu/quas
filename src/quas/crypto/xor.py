@@ -1,4 +1,5 @@
 import heapq
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from rich.table import Table
@@ -17,7 +18,7 @@ class XorCrackItem:
 
 @dataclass
 class XorPayload:
-    items: list[XorCrackItem]
+    items: Sequence[XorCrackItem]
 
 
 @dataclass

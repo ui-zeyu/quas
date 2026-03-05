@@ -1,6 +1,6 @@
 import mmap
 import re
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
@@ -26,7 +26,7 @@ class StreamItem:
 
 @dataclass
 class StreamPayload:
-    items: list[StreamItem]
+    items: Sequence[StreamItem]
 
 
 @dataclass

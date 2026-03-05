@@ -1,4 +1,5 @@
 import heapq
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from rich.table import Table
@@ -18,7 +19,7 @@ class SubCrackItem:
 
 @dataclass
 class SubPayload:
-    items: list[SubCrackItem]
+    items: Sequence[SubCrackItem]
 
 
 @dataclass
