@@ -5,14 +5,10 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Protocol, override
 
-import click
-import magic
 import pikepdf
 import pyparsing as pp
 from rich.console import Console
-from rich.panel import Panel
 
-from quas.context import ContextObject
 from quas.pdf.decoders import DecoderRegistry
 
 MAX_CONTENT_LENGTH = 1000
@@ -117,33 +113,3 @@ class RegexScanner(StreamScanner):
                 if filters := ast.get("/Filter"):
                     stream = DecoderRegistry.decode(stream, filters)
                 yield objgen.decode(), stream
-
-
-@click.command(help="Extract and display all PDF streams")
-@click.pass_obj
-@click.argument("infile", type=Path)
-@click.option(
-    "-s",
-    "--strategy",
-    type=click.Choice(ScanStrategy, case_sensitive=False),
-    default=ScanStrategy.NORMAL,
-    help="Scanning strategy: normal or regex",
-)
-def stream(ctx: ContextObject, infile: Path, strategy: ScanStrategy) -> None:
-    console = ctx["console"]
-
-    scanner = strategy.to_scanner()
-    for objgen, data in scanner.scan(infile, console):
-        content = data.decode(errors="replace")
-        content_type = magic.from_buffer(data)
-        if len(content) > MAX_CONTENT_LENGTH:
-            content = content[:MAX_CONTENT_LENGTH] + "..."
-
-        panel = Panel(
-            content,
-            title=f"[bold cyan]Stream {objgen}[/bold cyan]",
-            subtitle=f"[bold cyan]{content_type}[/bold cyan]",
-            expand=True,
-            highlight=True,
-        )
-        console.print(panel)

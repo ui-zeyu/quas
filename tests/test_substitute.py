@@ -5,6 +5,7 @@ from click.testing import CliRunner
 from rich.console import Console
 
 from quas.analysis.alphabet import Alphabet
+from quas.commands.crypto import sub as substitute_command
 from quas.context import ContextObject
 from quas.crypto.base import Result
 from quas.crypto.ciphers.substitute import (
@@ -12,7 +13,6 @@ from quas.crypto.ciphers.substitute import (
     SubstitutionCipher,
 )
 from quas.crypto.crackers import SubstituteCracker
-from quas.crypto.substitute import crack as substitute_command
 
 
 def test_substitute_key_random():

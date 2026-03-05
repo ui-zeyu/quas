@@ -4,7 +4,7 @@ from typing import NamedTuple, Protocol, override
 
 import numpy as np
 
-from quas.analysis import Alphabet, Characterizer, english_upper, quadgram
+from quas.analysis import Alphabet, Evaluator, english_upper, quadgram
 
 
 class Key: ...
@@ -73,7 +73,7 @@ class ShiftCipher(Cipher[str]):
 
 
 class Cracker[K: Key, CT](Protocol):
-    CHARACTERIZER: Characterizer = quadgram
+    CHARACTERIZER: Evaluator = quadgram
 
     def crack(self, ciphertext: CT) -> Iterator[Result[K]]: ...
 

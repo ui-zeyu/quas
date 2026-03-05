@@ -1,13 +1,10 @@
 from itertools import groupby
-from pathlib import Path
 from typing import override
 
-import click
 import numpy as np
 from scipy.signal import spectrogram
 
-from quas.audio.base import Analyzer, AudioSignal, select_channel
-from quas.context import ContextObject
+from quas.audio.base import Analyzer, AudioSignal
 
 
 class MorseDecoder(Analyzer[AudioSignal, tuple[str, str]]):
@@ -87,30 +84,3 @@ class MorseDecoder(Analyzer[AudioSignal, tuple[str, str]]):
         ]
         text = " ".join(words)
         return morse, text
-
-
-@click.command()
-@click.pass_obj
-@click.option("-t", "--tolerance", default=20, help="Frequency tolerance in Hz")
-@click.option("-w", "--window", default=10, help="Window size in ms")
-@click.option("-c", "--channel", type=int, help="Channel to use")
-@click.option("--dtype", default="float64", help="Audio data type")
-@click.argument("infile", type=Path)
-def morse(
-    ctx: ContextObject,
-    infile: Path,
-    tolerance: int,
-    window: int,
-    channel: int | None,
-    dtype: str,
-) -> None:
-    console = ctx["console"]
-    sig = AudioSignal.read(infile, dtype=dtype)
-
-    pipeline = select_channel(channel) | MorseDecoder(
-        tolerance=tolerance, window_ms=window
-    )
-    morse_code, text = pipeline(sig)
-
-    console.print(f"Morse: {morse_code}")
-    console.print(f"Text:  {text}")

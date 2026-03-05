@@ -6,7 +6,7 @@ from quas.analysis.alphabet import Alphabet, english_upper
 
 
 @runtime_checkable
-class Characterizer(Protocol):
+class Evaluator(Protocol):
     ALPHABET: Alphabet = english_upper
 
     def score(self, indices: np.ndarray[tuple[int], np.dtype[np.uint32]]) -> float: ...

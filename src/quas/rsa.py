@@ -2,13 +2,8 @@ from collections.abc import Iterable, Sequence
 from itertools import count, islice
 from typing import cast
 
-import click
-from Cryptodome.Util.number import long_to_bytes
 from gmpy2 import gcd, gcdext, invert, iroot, is_square, mpz, powmod
-from rich.panel import Panel
 from rich.status import Status
-
-from quas.context import ContextObject
 
 
 def known_d_n(d: mpz, n: mpz, c: mpz) -> mpz:
@@ -243,40 +238,3 @@ def dispatcher(
             status.update("Hastad broadcast attack")
             if m := hastad_broadcast(ns, cs, e):
                 yield m
-
-
-@click.command(help="RSA decryption and analysis tool")
-@click.pass_obj
-@click.option("-n", "ns", multiple=True, type=mpz, help="Modulus N")
-@click.option("-e", "es", multiple=True, type=mpz, help="Public exponent E")
-@click.option("-c", "cs", multiple=True, type=mpz, help="Ciphertext C")
-@click.option("-p", type=mpz, help="Prime factor P")
-@click.option("-q", type=mpz, help="Prime factor Q")
-@click.option("-d", type=mpz, help="Private key D")
-@click.option("-dp", type=mpz, help="Private key component dp")
-@click.option("-dq", type=mpz, help="Private key component dq")
-@click.option("-l", "--limit", type=int, default=1_000_000, help="Iteration limit")
-def app(
-    ctx: ContextObject,
-    ns: Sequence[mpz],
-    es: Sequence[mpz],
-    cs: Sequence[mpz],
-    p: mpz | None,
-    q: mpz | None,
-    d: mpz | None,
-    dp: mpz | None,
-    dq: mpz | None,
-    limit: int,
-) -> None:
-    console = ctx["console"]
-
-    with console.status("Starting analysis...") as status:
-        for m in dispatcher(ns, es, cs, p, q, d, dp, dq, limit, status):
-            plaintext = long_to_bytes(int(m)).decode(errors="replace")
-
-            panel = Panel(
-                f"[bold]m:[/bold] {m}\n[bold]plaintext:[/bold] {plaintext}",
-                title=str(status.status),
-                border_style="green",
-            )
-            console.print(panel)

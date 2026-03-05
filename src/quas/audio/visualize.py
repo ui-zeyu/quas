@@ -1,14 +1,11 @@
-from pathlib import Path
 from typing import override
 
-import click
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 from scipy.signal import spectrogram
 
-from quas.audio.base import Analyzer, AudioSignal, select_channel
-from quas.context import ContextObject
+from quas.audio.base import Analyzer, AudioSignal
 
 
 class AudioVisualizer(Analyzer[AudioSignal, Figure]):
@@ -44,25 +41,3 @@ class AudioVisualizer(Analyzer[AudioSignal, Figure]):
 
         fig.tight_layout()
         return fig
-
-
-@click.command()
-@click.pass_obj
-@click.option("-t", "--title", default="Audio Analysis", help="Plot title")
-@click.option("-w", "--window", default=20, help="Window size in ms")
-@click.option("-c", "--channel", type=int, help="Channel to use")
-@click.option("--dtype", default="float64", help="Audio data type")
-@click.argument("infile", type=Path)
-def visualize(
-    ctx: ContextObject,
-    infile: Path,
-    title: str,
-    window: int,
-    channel: int | None,
-    dtype: str,
-) -> None:
-    sig = AudioSignal.read(infile, dtype=dtype)
-
-    pipeline = select_channel(channel) | AudioVisualizer(title=title, window_ms=window)
-    pipeline(sig)
-    plt.show()

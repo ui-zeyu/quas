@@ -1,15 +1,9 @@
 from enum import Enum, auto
-from pathlib import Path
 from typing import Protocol, override, runtime_checkable
 
-import click
 import numpy as np
 from PIL import Image
 from scipy.fft import dctn
-from textual_image.renderable import Image as TermImage
-from textual_image.renderable import SixelImage, TGPImage
-
-from quas.context import ContextObject
 
 type ImageArray = np.ndarray[tuple[int, ...], np.dtype[np.uint8]]
 
@@ -147,41 +141,4 @@ class DCTExtractor(SinglePictureBlindWatermarkExtractor):
         return self.postprocess(watermark)
 
 
-@click.command(
-    help="Extract single image blind watermark using frequency domain analysis",
-)
-@click.pass_obj
-@click.argument("infile", type=Path)
-@click.argument("outfile", type=Path, required=False)
-@click.option(
-    "-m",
-    "--mode",
-    type=click.Choice(Mode, case_sensitive=False),
-    default=Mode.DFT_RESIZE,
-    help="Processing mode: dft-resize (nearest power of 2), dft-pad (pad to power of 2), dft-crop (trim to power of 2), or dct",
-)
-@click.option(
-    "-b",
-    "--brightness",
-    type=float,
-    default=50,
-    help="Watermark brightness enhancement factor (higher = brighter), dft only",
-)
-def spbwm(
-    ctx: ContextObject,
-    infile: Path,
-    outfile: Path | None,
-    mode: Mode,
-    brightness: float,
-) -> None:
-    image = Image.open(infile)
-    extractor = mode.to_extractor(image, brightness)
-    watermark = extractor.extract()
-
-    match outfile:
-        case Path():
-            watermark.save(outfile)
-        case None if TermImage in [TGPImage, SixelImage]:
-            ctx["console"].print(TermImage(watermark))
-        case _:
-            watermark.show()
+# Logic for single picture blind watermark extraction.

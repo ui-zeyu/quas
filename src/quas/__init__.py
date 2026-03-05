@@ -1,11 +1,12 @@
+import importlib
 import logging
+import pkgutil
 
 import click
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
 
-from quas import audio, behinder, crc, crypto, image, pdf, rsa, steg, util
 from quas.context import ContextObject
 
 CONTEXT_SETTINGS = dict(
@@ -14,7 +15,22 @@ CONTEXT_SETTINGS = dict(
 )
 
 
+class LazyCommandGroup(click.Group):
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+        try:
+            module = importlib.import_module(f"quas.commands.{cmd_name}")
+            return module.app
+        except ImportError:
+            return None
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        from quas import commands
+
+        return sorted([name for _, name, _ in pkgutil.iter_modules(commands.__path__)])
+
+
 @click.group(
+    cls=LazyCommandGroup,
     context_settings=CONTEXT_SETTINGS,
     help="Quas - Steganography and cryptanalysis CLI toolkit",
 )
@@ -42,8 +58,6 @@ def app(ctx: click.Context, verbose: int, debug: bool) -> None:
 
 
 def main() -> None:
-    for module in (audio, behinder, crc, crypto, image, pdf, rsa, steg, util):
-        app.add_command(module.app, module.__name__.rsplit(".", 1)[-1])
     app()
 
 

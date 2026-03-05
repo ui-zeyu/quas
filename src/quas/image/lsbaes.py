@@ -1,11 +1,9 @@
-import os
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from hashlib import sha256
 from pathlib import Path
 from typing import NamedTuple
 
-import click
 import matplotlib.pyplot as plt
 import numpy as np
 import toolz
@@ -13,8 +11,6 @@ from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
 from PIL import Image
 from rich.console import Console
-
-from quas.context import ContextObject
 
 
 class DecryptResult(NamedTuple):
@@ -113,29 +109,4 @@ def crack(
     return None
 
 
-@click.command(
-    help="Extract AES-encrypted data hidden in LSB bits and brute-force password",
-)
-@click.pass_obj
-@click.argument("image", type=Path)
-@click.argument("wordlist", type=Path)
-@click.option(
-    "-w",
-    "--workers",
-    type=int,
-    default=os.cpu_count() or 12,
-    help="Number of worker processes",
-)
-def lsbaes(ctx: ContextObject, image: Path, wordlist: Path, workers: int) -> None:
-    console = ctx["console"]
-
-    bits = extract_lsb_bits(image)
-    bytes = np.packbits(bits)
-    iv, ct = unpack_iv_ct(console, bytes)
-    analyse(bits)
-
-    if result := crack(iv, ct, wordlist, workers):
-        console.print(f"[bold]Password found:[/bold] {result.password}")
-        console.print(f"[bold]Decrypted text:[/bold] {result.plaintext}")
-    else:
-        console.print("[bold red]No valid password found[/bold red]")
+# Logic for LSB-AES extraction.

@@ -1,15 +1,7 @@
-import heapq
 import math
-import operator
 import unicodedata
 from collections.abc import Iterator, Sequence
 from itertools import batched, permutations
-from sys import stdin
-
-import click
-from rich.table import Table
-
-from quas.context import ContextObject
 
 
 def evaluator(text: str) -> float:
@@ -52,26 +44,3 @@ class ZeroWidthDecoder:
             for charset in permutations(zwcs, r):
                 if steg := cls(charset).decode(text):
                     yield steg, charset, evaluator(steg)
-
-
-@click.command(help="Decode zero-width character steganography")
-@click.pass_obj
-@click.argument("text", required=False)
-@click.option(
-    "-t",
-    "--top",
-    type=int,
-    default=10,
-    help="Number of top results to display",
-)
-def zerowidth(ctx: ContextObject, text: str | None, top: int) -> None:
-    console = ctx["console"]
-
-    text = text or stdin.read()
-    results = ZeroWidthDecoder.crack(text)
-
-    table = Table("Charset", "Decoded Content", "Score", box=None)
-    for steg, charset, score in heapq.nlargest(top, results, operator.itemgetter(2)):
-        charset = " ".join([repr(c).replace("'", "") for c in charset])
-        table.add_row(charset, steg, f"{score:.2f}")
-    console.print(table)

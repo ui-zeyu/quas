@@ -1,14 +1,9 @@
 import random
 from pathlib import Path
 
-import click
 import numpy as np
 import random2
 from PIL import Image
-from textual_image.renderable import Image as TermImage
-from textual_image.renderable import SixelImage, TGPImage
-
-from quas.context import ContextObject
 
 type ImageArray = np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]
 
@@ -48,36 +43,3 @@ class DoublePictureBlindWatermarkExtractor:
         watermark = np.clip(watermark, 0, 255).astype(np.uint8)
         watermark = self._reverse_shuffle(watermark)
         return Image.fromarray(watermark)
-
-
-@click.command()
-@click.pass_obj
-@click.option(
-    "-s",
-    "--seed",
-    default=20160930,
-    help="Default seed for BlindWaterMark, try height + width for blind-watermark",
-)
-@click.option("--old", is_flag=True, help="Use Python2 random algorithm")
-@click.argument("original", type=Path)
-@click.argument("watermarked", type=Path)
-@click.argument("outfile", type=Path, required=False)
-def dpbwm(
-    ctx: ContextObject,
-    seed: int,
-    old: bool,
-    original: Path,
-    watermarked: Path,
-    outfile: Path | None,
-) -> None:
-
-    extractor = DoublePictureBlindWatermarkExtractor(original, watermarked, seed, old)
-    watermark = extractor.extract()
-
-    match outfile:
-        case Path():
-            watermark.save(outfile)
-        case None if TermImage in [TGPImage, SixelImage]:
-            ctx["console"].print(TermImage(watermark))
-        case _:
-            watermark.show()

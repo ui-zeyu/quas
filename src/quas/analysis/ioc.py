@@ -2,10 +2,10 @@ from typing import override
 
 import numpy as np
 
-from quas.analysis.characterizer import Characterizer
+from quas.analysis.evaluator import Evaluator
 
 
-class IndexOfCoincidence(Characterizer):
+class IndexOfCoincidence(Evaluator):
     @override
     def score(self, indices: np.ndarray[tuple[int], np.dtype[np.uint32]]) -> float:
         frequencies = np.bincount(indices, minlength=len(self.ALPHABET))

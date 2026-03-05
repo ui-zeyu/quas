@@ -4,10 +4,10 @@ from typing import cast, override
 
 import numpy as np
 
-from quas.analysis.characterizer import Characterizer
+from quas.analysis.evaluator import Evaluator
 
 
-class Quadgram(Characterizer):
+class Quadgram(Evaluator):
     def __init__(self, filepath: Path) -> None:
         ngrams: dict[str, int] = {}
         for line in filepath.read_text().splitlines():

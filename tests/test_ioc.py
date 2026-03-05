@@ -1,12 +1,12 @@
 import numpy as np
 
 from quas.analysis.alphabet import english_upper
-from quas.analysis.characterizer import Characterizer
+from quas.analysis.evaluator import Evaluator
 from quas.analysis.ioc import IndexOfCoincidence
 
 
 def test_ioc_is_characterizer():
-    assert isinstance(IndexOfCoincidence(), Characterizer)
+    assert isinstance(IndexOfCoincidence(), Evaluator)
 
 
 def test_ioc_english_text():
