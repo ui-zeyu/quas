@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
-from typing import NamedTuple, override
+from typing import NamedTuple, Protocol, override
 
 import numpy as np
 
@@ -15,10 +15,8 @@ class Result[K: Key](NamedTuple):
     score: float
 
 
-class Cipher[CT](ABC):
-    @abstractmethod
-    def decrypt(self, ciphertext: CT) -> CT:
-        raise NotImplementedError
+class Cipher[CT](Protocol):
+    def decrypt(self, ciphertext: CT) -> CT: ...
 
 
 class ByteCipher(Cipher[bytes]):
@@ -26,7 +24,7 @@ class ByteCipher(Cipher[bytes]):
         return self.decrypt(ciphertext).decode()
 
 
-class SubstituteCipher(Cipher[Sequence[int]]):
+class SubstituteCipher(ABC, Cipher[Sequence[int]]):
     @abstractmethod
     def decrypt_letter(self, x: int) -> int:
         raise NotImplementedError
@@ -74,15 +72,13 @@ class ShiftCipher(Cipher[str]):
         return "".join(self.decrypt(ciphertext))
 
 
-class Cracker[K: Key, CT](ABC):
+class Cracker[K: Key, CT](Protocol):
     CHARACTERIZER: Characterizer = quadgram
 
-    @abstractmethod
-    def crack(self, ciphertext: CT) -> Iterator[Result[K]]:
-        raise NotImplementedError
+    def crack(self, ciphertext: CT) -> Iterator[Result[K]]: ...
 
 
-class BruteForceCracker[K: Key, CT](Cracker[K, CT]):
+class BruteForceCracker[K: Key, CT](ABC, Cracker[K, CT]):
     @abstractmethod
     def cipher(self, key: K) -> Cipher[CT]:
         raise NotImplementedError

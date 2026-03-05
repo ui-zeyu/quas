@@ -1,7 +1,6 @@
-from abc import ABC, abstractmethod
 from enum import Enum, auto
 from pathlib import Path
-from typing import override
+from typing import Protocol, override, runtime_checkable
 
 import click
 import numpy as np
@@ -38,23 +37,18 @@ class Mode(Enum):
         return extractor(image, brightness)
 
 
-class SinglePictureBlindWatermarkExtractor(ABC):
+@runtime_checkable
+class SinglePictureBlindWatermarkExtractor(Protocol):
     def __init__(self, image: Image.Image, brightness: float) -> None:
         self.image = image
         self.w, self.h = image.size
         self.scale_factor = brightness / 5
 
-    @abstractmethod
-    def preprocess(self) -> ImageArray:
-        raise NotImplementedError
+    def preprocess(self) -> ImageArray: ...
 
-    @abstractmethod
-    def postprocess(self, array: ImageArray) -> Image.Image:
-        raise NotImplementedError
+    def postprocess(self, array: ImageArray) -> Image.Image: ...
 
-    @abstractmethod
-    def extract(self) -> Image.Image:
-        raise NotImplementedError
+    def extract(self) -> Image.Image: ...
 
 
 class DFTExtractor(SinglePictureBlindWatermarkExtractor):
@@ -63,7 +57,6 @@ class DFTExtractor(SinglePictureBlindWatermarkExtractor):
         super().__init__(image, brightness)
         self.nw, self.nh = self.calculate_size(self.w), self.calculate_size(self.h)
 
-    @abstractmethod
     def calculate_size(self, size: int) -> int:
         raise NotImplementedError
 

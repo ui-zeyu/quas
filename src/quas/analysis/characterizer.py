@@ -1,16 +1,15 @@
-from abc import ABC, abstractmethod
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 
 from quas.analysis.alphabet import Alphabet, english_upper
 
 
-class Characterizer(ABC):
+@runtime_checkable
+class Characterizer(Protocol):
     ALPHABET: Alphabet = english_upper
 
-    @abstractmethod
-    def score(self, indices: np.ndarray[tuple[int], np.dtype[np.uint32]]) -> float:
-        raise NotImplementedError
+    def score(self, indices: np.ndarray[tuple[int], np.dtype[np.uint32]]) -> float: ...
 
     def score_text(self, text: str) -> float:
         indices = self.ALPHABET.encode(text)

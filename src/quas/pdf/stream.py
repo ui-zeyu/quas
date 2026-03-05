@@ -1,10 +1,9 @@
 import mmap
 import re
-from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from enum import Enum, auto
 from pathlib import Path
-from typing import override
+from typing import Protocol, override
 
 import click
 import magic
@@ -31,10 +30,8 @@ class ScanStrategy(Enum):
                 return RegexScanner()
 
 
-class StreamScanner(ABC):
-    @abstractmethod
-    def scan(self, infile: Path, console: Console) -> Iterator[tuple[str, bytes]]:
-        raise NotImplementedError
+class StreamScanner(Protocol):
+    def scan(self, infile: Path, console: Console) -> Iterator[tuple[str, bytes]]: ...
 
 
 class NormalScanner(StreamScanner):
