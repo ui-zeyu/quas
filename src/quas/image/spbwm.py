@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 from scipy.fft import dctn
 
-from quas.image.base import ImagePayload, ImageResult
+from quas.image.base import ImageResult
 
 type ImageArray = np.ndarray[tuple[int, ...], np.dtype[np.uint8]]
 
@@ -34,13 +34,11 @@ class Mode(Enum):
         return extractor(image, brightness)
 
     @classmethod
-    def perform(
-        cls, infile: Path, outfile: Path | None, mode: Mode, brightness: float
-    ) -> ImageResult:
+    def perform(cls, infile: Path, mode: Mode, brightness: float) -> ImageResult:
         image = Image.open(infile)
         extractor = mode.to_extractor(image, brightness)
         watermark = extractor.extract()
-        return ImageResult(ImagePayload(image=watermark, outfile=outfile))
+        return ImageResult(watermark)
 
 
 @runtime_checkable

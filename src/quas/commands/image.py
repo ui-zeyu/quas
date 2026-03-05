@@ -11,7 +11,6 @@ def app() -> None: ...
 
 
 @click.command(help="Extract image pixels by coordinate sampling")
-@click.pass_obj
 @click.option("-x", type=int, default=0, help="Starting x coordinate (default: 0)")
 @click.option("-y", type=int, default=0, help="Starting y coordinate (default: 0)")
 @click.option("--stepx", type=int, default=1, help="X step size (default: 1)")
@@ -19,7 +18,6 @@ def app() -> None: ...
 @click.argument("infile", type=Path)
 @click.argument("outfile", type=Path, required=False)
 def extract(
-    ctx: ContextObject,
     infile: Path,
     x: int,
     y: int,
@@ -29,10 +27,8 @@ def extract(
 ) -> None:
     from quas.image.extract import extract_pixels
 
-    console = ctx["console"]
-    result = extract_pixels(infile, x, y, stepx, stepy, outfile)
-    result.save_or_show()
-    console.print(result)
+    image = extract_pixels(infile, x, y, stepx, stepy).data
+    image.save(outfile) if outfile else image.show()
 
 
 @click.command(help="Inspect image pixels by coordinate sampling")
@@ -95,7 +91,6 @@ def lsbaes(
 @click.command(
     help="Extract single image blind watermark using frequency domain analysis"
 )
-@click.pass_obj
 @click.argument("infile", type=Path)
 @click.argument("outfile", type=Path, required=False)
 @click.option(
@@ -113,20 +108,16 @@ def lsbaes(
     help="Watermark brightness enhancement factor",
 )
 def spbwm(
-    ctx: ContextObject,
     infile: Path,
     outfile: Path | None,
     mode: Mode,
     brightness: float,
 ) -> None:
-    console = ctx["console"]
-    result = Mode.perform(infile, outfile, mode, brightness)
-    result.save_or_show()
-    console.print(result)
+    image = Mode.perform(infile, mode, brightness).data
+    image.save(outfile) if outfile else image.show()
 
 
 @click.command(help="Extract double image blind watermark")
-@click.pass_obj
 @click.option(
     "-s",
     "--seed",
@@ -138,7 +129,6 @@ def spbwm(
 @click.argument("watermarked", type=Path)
 @click.argument("outfile", type=Path, required=False)
 def dpbwm(
-    ctx: ContextObject,
     seed: int,
     old: bool,
     original: Path,
@@ -147,12 +137,13 @@ def dpbwm(
 ) -> None:
     from quas.image.dpbwm import DoublePictureBlindWatermarkExtractor
 
-    console = ctx["console"]
-    result = DoublePictureBlindWatermarkExtractor.perform(
-        original, watermarked, seed, old, outfile
-    )
-    result.save_or_show()
-    console.print(result)
+    image = DoublePictureBlindWatermarkExtractor.perform(
+        original,
+        watermarked,
+        seed,
+        old,
+    ).data
+    image.save(outfile) if outfile else image.show()
 
 
 app.add_command(extract)
