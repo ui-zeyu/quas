@@ -4,6 +4,9 @@ from io import BytesIO
 from struct import pack, unpack
 
 from PIL import Image
+from rich.text import Text
+
+from quas.core.protocols import CommandResult
 
 PNG_SIGNATURE = b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"
 IHDR_CHUNK_TYPE = b"IHDR"
@@ -11,17 +14,27 @@ MAX_DIMENSION = 5000
 
 
 @dataclass
-class IHDRRecoverResult:
+class IHDRPayload:
     width: int
     height: int
     image: Image.Image
+
+
+@dataclass
+class IHDRResult(CommandResult[IHDRPayload]):
+    data: IHDRPayload
+
+    def __rich__(self) -> Text:
+        return Text.from_markup(
+            f"\n[green]Found: {self.data.width} x {self.data.height}[/green]"
+        )
 
 
 def recover_ihdr_dimensions(
     data: bytes,
     max_width: int,
     max_height: int,
-) -> IHDRRecoverResult | None:
+) -> IHDRResult | None:
     if data[:8] != PNG_SIGNATURE:
         raise ValueError("Invalid PNG signature")
 
@@ -43,7 +56,7 @@ def recover_ihdr_dimensions(
                     from PIL import UnidentifiedImageError
 
                     img = Image.open(BytesIO(image_data))
-                    return IHDRRecoverResult(width=x, height=y, image=img)
+                    return IHDRResult(IHDRPayload(width=x, height=y, image=img))
                 except UnidentifiedImageError:
                     continue
     return None

@@ -13,10 +13,10 @@ def test_bruteforce_size_4() -> None:
     targets = {crc32(b"0001") & 0xFFFFFFFF, crc32(b"0002") & 0xFFFFFFFF}
     charset = b"0123456789"
 
-    results = bruteforce(4, targets, charset, jobs=1)
+    results = bruteforce(4, targets, charset, jobs=1, crc2file={})
 
-    assert len(results) == 2
-    for _crc, filenames in results.items():
+    assert len(results.data.results) == 2
+    for _crc, filenames in results.data.results.items():
         assert len(filenames) >= 1
         for filename in filenames:
             assert len(filename) == 4
@@ -26,19 +26,19 @@ def test_bruteforce_small_size() -> None:
     targets = {crc32(b"abc") & 0xFFFFFFFF}
     charset = b"abc"
 
-    results = bruteforce(3, targets, charset, jobs=1)
+    results = bruteforce(3, targets, charset, jobs=1, crc2file={})
 
-    assert len(results) == 1
-    assert "abc" in results[targets.pop()]
+    assert len(results.data.results) == 1
+    assert "abc" in results.data.results[targets.pop()]
 
 
 def test_bruteforce_no_match() -> None:
     targets = {0xFFFFFFFF}
     charset = b"abc"
 
-    results = bruteforce(3, targets, charset, jobs=1)
+    results = bruteforce(3, targets, charset, jobs=1, crc2file={})
 
-    assert len(results) == 0
+    assert len(results.data.results) == 0
 
 
 def test_zip_signature() -> None:
@@ -51,6 +51,6 @@ def test_bruteforce_charset_all_printable() -> None:
     targets = {crc32(b"1234") & 0xFFFFFFFF}
     charset = string.printable.strip()[:10].encode()
 
-    results = bruteforce(4, targets, charset, jobs=1)
+    results = bruteforce(4, targets, charset, jobs=1, crc2file={})
 
-    assert "1234" in results[targets.pop()]
+    assert "1234" in results.data.results[targets.pop()]

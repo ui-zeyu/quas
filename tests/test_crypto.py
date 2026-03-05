@@ -3,11 +3,11 @@ from rich.console import Console
 
 from quas.analysis.alphabet import english_upper
 from quas.analysis.quadgram import Quadgram, quadgram
+from quas.commands.context import ContextObject
 from quas.commands.crypto import affine as affine_command
 from quas.commands.crypto import caesar as caesar_command
 from quas.commands.crypto import columnar as columnar_command
 from quas.commands.crypto import railfence as railfence_command
-from quas.context import ContextObject
 from quas.crypto.ciphers.affine import AffineCipher, AffineKey
 from quas.crypto.ciphers.caesar import CaesarCipher, CaesarKey
 from quas.crypto.ciphers.columnar import ColumnarCipher, ColumnarKey

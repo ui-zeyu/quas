@@ -2,7 +2,33 @@ import itertools
 from binascii import crc32
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from dataclasses import dataclass
 from functools import partial
+
+from rich.table import Table
+
+from quas.core.protocols import CommandResult
+
+
+@dataclass
+class ZipPayload:
+    results: dict[int, list[str]]
+    crc2file: dict[int, str]
+
+
+@dataclass
+class ZipResult(CommandResult[ZipPayload]):
+    data: ZipPayload
+
+    def __rich__(self) -> Table:
+        table = Table("File", "CRC32", "Found", box=None, highlight=True)
+        for crc, contents in self.data.results.items():
+            table.add_row(
+                self.data.crc2file.get(crc, "Unknown"),
+                f"{crc:08X}",
+                ", ".join(contents),
+            )
+        return table
 
 
 def _worker(
@@ -25,9 +51,11 @@ def bruteforce(
     targets: set[int],
     charset: bytes,
     jobs: int,
-) -> dict[int, list[str]]:
+    crc2file: dict[int, str],
+) -> ZipResult:
     if jobs == 1 or size < 4:
-        return _worker(b"", size, targets, charset)
+        results = _worker(b"", size, targets, charset)
+        return ZipResult(ZipPayload(results=results, crc2file=crc2file))
 
     results = defaultdict(list)
     worker = partial(_worker, size=size - 1, targets=targets, charset=charset)
@@ -35,4 +63,4 @@ def bruteforce(
         for result in e.map(worker, (bytes([x]) for x in charset)):
             for k, v in result.items():
                 results[k].extend(v)
-    return results
+    return ZipResult(ZipPayload(results=results, crc2file=crc2file))

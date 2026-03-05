@@ -1,6 +1,6 @@
 import click
 
-from quas.context import ContextObject
+from quas.commands.context import ContextObject
 
 STANDARD_FREQUENCY: dict[str, float] = {
     "E": 12.7,
@@ -43,19 +43,13 @@ def app() -> None: ...
 def affine(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     from sys import stdin
 
-    from rich.table import Table
-
     from quas.crypto.affine import perform_affine_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
 
-    results = perform_affine_crack(ciphertext, top)
-
-    table = Table("a", "b", "Plaintext", "Score", box=None)
-    for res in results:
-        table.add_row(str(res.a), str(res.b), res.plaintext, str(res.score))
-    console.print(table, markup=False)
+    result = perform_affine_crack(ciphertext, top)
+    console.print(result, markup=False)
 
 
 @click.command(help="Analyze ciphertext statistics using various scoring methods")
@@ -73,9 +67,6 @@ def analyse(
     from base64 import b64decode
     from sys import stdin
 
-    from rich.panel import Panel
-    from rich.table import Table
-
     from quas.crypto.analyse import perform_analysis
 
     if hex_flag and b64_flag:
@@ -89,33 +80,7 @@ def analyse(
     ciphertext = ciphertext.strip()
 
     result = perform_analysis(ciphertext)
-
-    table = Table("Char", "Count", "Percent", "Binary", box=None, expand=True)
-    for stat in result.frequencies:
-        table.add_row(stat.char, str(stat.count), f"{stat.percent:.2f}%", stat.binary)
-    console.print(Panel(table, title="Frequency Analysis"))
-
-    table = Table("Char", "Count", "Percent", "Standard", box=None, expand=True)
-    for stat in result.alpha_frequencies:
-        standard_str = (
-            f"{stat.standard_percent:.2f}%"
-            if stat.standard_percent is not None
-            else "0.00%"
-        )
-        table.add_row(stat.char, str(stat.count), f"{stat.percent:.2f}%", standard_str)
-    console.print(Panel(table, title="Frequency Analysis (Upper Case)"))
-
-    table = Table("Scorer", "Score", "Length", "Normal Range", box=None, expand=True)
-    table.add_row(
-        "IoC", f"{result.ioc_score:.3f}", str(result.alpha_length), "0.0567 - 0.0767"
-    )
-    table.add_row(
-        "Quadgram",
-        f"{result.quadgram_score:.3f}",
-        str(result.alpha_length),
-        "10.0 - 11.0",
-    )
-    console.print(Panel(table, title="Scoring Analysis"))
+    console.print(result)
 
 
 @click.command(help="Bruteforce caesar cipher with quadgram scoring")
@@ -125,19 +90,13 @@ def analyse(
 def caesar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     from sys import stdin
 
-    from rich.table import Table
-
     from quas.crypto.caesar import perform_caesar_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
 
-    results = perform_caesar_crack(ciphertext, top)
-
-    table = Table("Shift", "Plaintext", "Score", box=None)
-    for res in results:
-        table.add_row(str(res.shift), res.plaintext, str(res.score))
-    console.print(table, markup=False)
+    result = perform_caesar_crack(ciphertext, top)
+    console.print(result, markup=False)
 
 
 @click.command(help="Crack columnar transposition cipher with quadgram scoring")
@@ -147,19 +106,13 @@ def caesar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
 def columnar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     from sys import stdin
 
-    from rich.table import Table
-
     from quas.crypto.columnar import perform_columnar_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
 
-    results = perform_columnar_crack(ciphertext, top)
-
-    table = Table("Cols", "Plaintext", "Score", box=None)
-    for res in results:
-        table.add_row(str(res.cols), res.plaintext, str(res.score))
-    console.print(table, markup=False)
+    result = perform_columnar_crack(ciphertext, top)
+    console.print(result, markup=False)
 
 
 @click.command(help="Crack rail fence cipher with quadgram scoring")
@@ -169,75 +122,58 @@ def columnar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
 def railfence(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
     from sys import stdin
 
-    from rich.table import Table
-
     from quas.crypto.railfence import perform_railfence_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
 
-    results = perform_railfence_crack(ciphertext, top)
-
-    table = Table("Rails", "Plaintext", "Score", box=None)
-    for res in results:
-        table.add_row(str(res.rails), res.plaintext, str(res.score))
-    console.print(table, markup=False)
+    result = perform_railfence_crack(ciphertext, top)
+    console.print(result, markup=False)
 
 
 @click.command(help="Crack substitution cipher using hill climbing with N-gram scoring")
 @click.pass_obj
 @click.argument("ciphertext", type=str, required=False)
 @click.option(
-    "-c",
-    "--calphabet",
+    "-a",
+    "--alphabet",
+    "calphabet",
     type=str,
-    default="ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    help="Cipher alphabet",
+    default="A B C D E F G H I J K L M N O P Q R S T U V W X Y Z",
+    help="Alphabet used in ciphertext (space-separated or string)",
 )
 @click.option(
-    "-r", "--restarts", type=int, default=100, help="Number of hill climbing restarts"
+    "-r", "--restarts", type=int, default=10, help="Number of hill climbing restarts"
 )
-@click.option("-t", "--top", type=int, default=3, help="Show top N results")
+@click.option("-t", "--top", type=int, default=10, help="Show top N results")
 def sub(
     ctx: ContextObject, ciphertext: str | None, calphabet: str, restarts: int, top: int
 ) -> None:
     from sys import stdin
-
-    from rich.table import Table
 
     from quas.crypto.substitute import perform_sub_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
 
-    results = perform_sub_crack(ciphertext, calphabet, restarts, top)
-
-    table = Table("Key", "Plaintext", "Score", box=None)
-    for res in results:
-        table.add_row(res.key, res.plaintext, str(res.score))
-    console.print(table, markup=False)
+    result = perform_sub_crack(ciphertext, calphabet, restarts, top)
+    console.print(result, markup=False)
 
 
 @click.command(help="Crack XOR cipher using frequency analysis")
 @click.pass_obj
-@click.option("-t", "--top", type=int, default=10, help="Show top N results")
 @click.argument("ciphertext", type=str, required=False)
+@click.option("-t", "--top", type=int, default=10, help="Show top N results")
 def xor(ctx: ContextObject, top: int, ciphertext: str | None) -> None:
     from sys import stdin
-
-    from rich.table import Table
 
     from quas.crypto.xor import perform_xor_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
 
-    results = perform_xor_crack(ciphertext, top)
-
-    table = Table("Key (Hex)", "Plaintext (Bytes)", "Score", box=None)
-    for res in results:
-        table.add_row(res.key_hex, str(res.plaintext), str(res.score))
-    console.print(table, markup=False)
+    result = perform_xor_crack(ciphertext, top)
+    console.print(result, markup=False)
 
 
 app.add_command(affine)

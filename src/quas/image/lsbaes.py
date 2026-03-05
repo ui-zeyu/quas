@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 from typing import NamedTuple
@@ -11,11 +12,33 @@ from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
 from PIL import Image
 from rich.console import Console
+from rich.text import Text
+
+from quas.core.protocols import CommandResult
 
 
 class DecryptResult(NamedTuple):
     password: str
     plaintext: str
+
+
+@dataclass
+class LsbAesPayload:
+    password: str | None
+    plaintext: str | None
+
+
+@dataclass
+class LsbAesResult(CommandResult[LsbAesPayload]):
+    data: LsbAesPayload
+
+    def __rich__(self) -> Text:
+        if self.data.password is not None:
+            return Text.from_markup(
+                f"[bold]Password found:[/bold] {self.data.password}\n[bold]Decrypted text:[/bold] {self.data.plaintext}"
+            )
+        else:
+            return Text.from_markup("[bold red]No valid password found[/bold red]")
 
 
 PADDING_SIZE: int = 32
@@ -109,4 +132,17 @@ def crack(
     return None
 
 
-# Logic for LSB-AES extraction.
+def perform_lsbaes(
+    image_path: Path, wordlist: Path, workers: int, console: Console
+) -> LsbAesResult:
+    bits = extract_lsb_bits(image_path)
+    bytes_data = np.packbits(bits)
+    iv, ct = unpack_iv_ct(console, bytes_data)
+    analyse(bits)
+
+    if result := crack(iv, ct, wordlist, workers):
+        return LsbAesResult(
+            LsbAesPayload(password=result.password, plaintext=result.plaintext)
+        )
+    else:
+        return LsbAesResult(LsbAesPayload(password=None, plaintext=None))

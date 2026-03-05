@@ -1,13 +1,34 @@
+from dataclasses import dataclass
 from itertools import groupby
 from typing import override
 
 import numpy as np
+from rich.console import Group
+from rich.text import Text
 from scipy.signal import spectrogram
 
 from quas.audio.base import Analyzer, AudioSignal
+from quas.core.protocols import CommandResult
 
 
-class MorseDecoder(Analyzer[AudioSignal, tuple[str, str]]):
+@dataclass
+class MorsePayload:
+    morse_code: str
+    text: str
+
+
+@dataclass
+class MorseResult(CommandResult[MorsePayload]):
+    data: MorsePayload
+
+    def __rich__(self) -> Group:
+        return Group(
+            Text(f"Morse: {self.data.morse_code}"),
+            Text(f"Text:  {self.data.text}"),
+        )
+
+
+class MorseDecoder(Analyzer[AudioSignal, MorseResult]):
     MORSE_MAP = {
         ".-": "A",
         "-...": "B",
@@ -53,7 +74,7 @@ class MorseDecoder(Analyzer[AudioSignal, tuple[str, str]]):
         self.window_ms = window_ms
 
     @override
-    def __call__(self, data: AudioSignal) -> tuple[str, str]:
+    def __call__(self, data: AudioSignal) -> MorseResult:
         y, sr = data.y, data.sr
         nperseg = int(sr * (self.window_ms / 1000))
         f, _, sxx = spectrogram(y, sr, nperseg=nperseg)
@@ -83,4 +104,15 @@ class MorseDecoder(Analyzer[AudioSignal, tuple[str, str]]):
             for word in morse.split("/")
         ]
         text = " ".join(words)
-        return morse, text
+        return MorseResult(MorsePayload(morse_code=morse, text=text))
+
+    @classmethod
+    def perform(
+        cls, sig: AudioSignal, tolerance: int, window_ms: int, channel: int | None
+    ) -> MorseResult:
+        from quas.audio.base import select_channel
+
+        pipeline = select_channel(channel) | cls(
+            tolerance=tolerance, window_ms=window_ms
+        )
+        return pipeline(sig)

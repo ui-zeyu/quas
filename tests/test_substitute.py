@@ -5,8 +5,8 @@ from click.testing import CliRunner
 from rich.console import Console
 
 from quas.analysis.alphabet import Alphabet
+from quas.commands.context import ContextObject
 from quas.commands.crypto import sub as substitute_command
-from quas.context import ContextObject
 from quas.crypto.base import Result
 from quas.crypto.ciphers.substitute import (
     SubstituteKey,

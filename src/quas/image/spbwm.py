@@ -1,9 +1,12 @@
 from enum import Enum, auto
+from pathlib import Path
 from typing import Protocol, override, runtime_checkable
 
 import numpy as np
 from PIL import Image
 from scipy.fft import dctn
+
+from quas.image.base import ImagePayload, ImageResult
 
 type ImageArray = np.ndarray[tuple[int, ...], np.dtype[np.uint8]]
 
@@ -29,6 +32,15 @@ class Mode(Enum):
             case Mode.DCT:
                 extractor = DCTExtractor
         return extractor(image, brightness)
+
+    @classmethod
+    def perform(
+        cls, infile: Path, outfile: Path | None, mode: Mode, brightness: float
+    ) -> ImageResult:
+        image = Image.open(infile)
+        extractor = mode.to_extractor(image, brightness)
+        watermark = extractor.extract()
+        return ImageResult(ImagePayload(image=watermark, outfile=outfile))
 
 
 @runtime_checkable
@@ -139,6 +151,3 @@ class DCTExtractor(SinglePictureBlindWatermarkExtractor):
         watermark_mask = np.all((dct_coeffs >= 0) & (dct_coeffs <= 16), axis=-1)
         watermark = (watermark_mask * 255).astype(np.uint8)
         return self.postprocess(watermark)
-
-
-# Logic for single picture blind watermark extraction.

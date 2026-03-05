@@ -1,17 +1,56 @@
 import mmap
 import re
 from collections.abc import Iterator
+from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 from typing import Protocol, override
 
+import magic
 import pikepdf
 import pyparsing as pp
-from rich.console import Console
+from rich.console import Console, Group
+from rich.panel import Panel
 
+from quas.core.protocols import CommandResult
 from quas.pdf.decoders import DecoderRegistry
 
 MAX_CONTENT_LENGTH = 1000
+
+
+@dataclass
+class StreamItem:
+    objgen: str
+    data: bytes
+
+
+@dataclass
+class StreamPayload:
+    items: list[StreamItem]
+
+
+@dataclass
+class StreamResult(CommandResult[StreamPayload]):
+    data: StreamPayload
+
+    def __rich__(self) -> Group:
+        panels = []
+        for item in self.data.items:
+            content = item.data.decode(errors="replace")
+            content_type = magic.from_buffer(item.data)
+            if len(content) > MAX_CONTENT_LENGTH:
+                content = content[:MAX_CONTENT_LENGTH] + "..."
+
+            panels.append(
+                Panel(
+                    content,
+                    title=f"[bold cyan]Stream {item.objgen}[/bold cyan]",
+                    subtitle=f"[bold cyan]{content_type}[/bold cyan]",
+                    expand=True,
+                    highlight=True,
+                )
+            )
+        return Group(*panels)
 
 
 class ScanStrategy(Enum):
@@ -25,21 +64,32 @@ class ScanStrategy(Enum):
             case ScanStrategy.REGEX:
                 return RegexScanner()
 
+    @classmethod
+    def perform_scan(
+        cls,
+        infile: Path,
+        strategy: ScanStrategy,
+        console: Console,
+    ) -> StreamResult:
+        scanner = strategy.to_scanner()
+        items = list(scanner.scan(infile, console))
+        return StreamResult(StreamPayload(items))
+
 
 class StreamScanner(Protocol):
-    def scan(self, infile: Path, console: Console) -> Iterator[tuple[str, bytes]]: ...
+    def scan(self, infile: Path, console: Console) -> Iterator[StreamItem]: ...
 
 
 class NormalScanner(StreamScanner):
     @override
-    def scan(self, infile: Path, console: Console) -> Iterator[tuple[str, bytes]]:
+    def scan(self, infile: Path, console: Console) -> Iterator[StreamItem]:
         with pikepdf.Pdf.open(infile) as doc:
             for obj in doc.objects:
                 if not isinstance(obj, pikepdf.Stream):
                     continue
 
                 data = obj.read_bytes()
-                yield str(obj.objgen), data
+                yield StreamItem(str(obj.objgen), data)
 
 
 class RegexScanner(StreamScanner):
@@ -80,7 +130,7 @@ class RegexScanner(StreamScanner):
     DICT_PARSER: pp.ParserElement = dict_parser()
 
     @override
-    def scan(self, infile: Path, console: Console) -> Iterator[tuple[str, bytes]]:
+    def scan(self, infile: Path, console: Console) -> Iterator[StreamItem]:
         with (
             open(infile, "rb") as f,
             mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm,
@@ -112,4 +162,4 @@ class RegexScanner(StreamScanner):
 
                 if filters := ast.get("/Filter"):
                     stream = DecoderRegistry.decode(stream, filters)
-                yield objgen.decode(), stream
+                yield StreamItem(objgen.decode(), stream)

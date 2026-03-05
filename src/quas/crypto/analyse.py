@@ -2,10 +2,80 @@ from collections import Counter
 from dataclasses import dataclass
 
 import numpy as np
+from rich.console import Group
+from rich.panel import Panel
+from rich.table import Table
 
 from quas.analysis import english_upper
 from quas.analysis.ioc import IndexOfCoincidence
 from quas.analysis.quadgram import quadgram
+from quas.core.protocols import CommandResult
+
+
+@dataclass
+class FrequencyStat:
+    char: str
+    count: int
+    percent: float
+    binary: str
+    standard_percent: float | None = None
+
+
+@dataclass
+class AnalysePayload:
+    total_length: int
+    frequencies: list[FrequencyStat]
+    alpha_frequencies: list[FrequencyStat]
+    ioc_score: float
+    quadgram_score: float
+    alpha_length: int
+
+
+@dataclass
+class AnalyseResult(CommandResult[AnalysePayload]):
+    data: AnalysePayload
+
+    def __rich__(self) -> Group:
+        group_items = []
+
+        table1 = Table("Char", "Count", "Percent", "Binary", box=None, expand=True)
+        for stat in self.data.frequencies:
+            table1.add_row(
+                stat.char, str(stat.count), f"{stat.percent:.2f}%", stat.binary
+            )
+        group_items.append(Panel(table1, title="Frequency Analysis"))
+
+        table2 = Table("Char", "Count", "Percent", "Standard", box=None, expand=True)
+        for stat in self.data.alpha_frequencies:
+            standard_str = (
+                f"{stat.standard_percent:.2f}%"
+                if stat.standard_percent is not None
+                else "0.00%"
+            )
+            table2.add_row(
+                stat.char, str(stat.count), f"{stat.percent:.2f}%", standard_str
+            )
+        group_items.append(Panel(table2, title="Frequency Analysis (Upper Case)"))
+
+        table3 = Table(
+            "Scorer", "Score", "Length", "Normal Range", box=None, expand=True
+        )
+        table3.add_row(
+            "IoC",
+            f"{self.data.ioc_score:.3f}",
+            str(self.data.alpha_length),
+            "0.0567 - 0.0767",
+        )
+        table3.add_row(
+            "Quadgram",
+            f"{self.data.quadgram_score:.3f}",
+            str(self.data.alpha_length),
+            "10.0 - 11.0",
+        )
+        group_items.append(Panel(table3, title="Scoring Analysis"))
+
+        return Group(*group_items)
+
 
 STANDARD_FREQUENCY: dict[str, float] = {
     "E": 12.7,
@@ -37,26 +107,7 @@ STANDARD_FREQUENCY: dict[str, float] = {
 }
 
 
-@dataclass
-class FrequencyStat:
-    char: str
-    count: int
-    percent: float
-    binary: str
-    standard_percent: float | None = None
-
-
-@dataclass
-class AnalysisResult:
-    total_length: int
-    frequencies: list[FrequencyStat]
-    alpha_frequencies: list[FrequencyStat]
-    ioc_score: float
-    quadgram_score: float
-    alpha_length: int
-
-
-def perform_analysis(ciphertext: str) -> AnalysisResult:
+def perform_analysis(ciphertext: str) -> AnalyseResult:
     frequencies = []
     total_length = len(ciphertext)
     if total_length > 0:
@@ -93,11 +144,13 @@ def perform_analysis(ciphertext: str) -> AnalysisResult:
         score_ioc = 0.0
         score_quadgram = 0.0
 
-    return AnalysisResult(
-        total_length=total_length,
-        frequencies=frequencies,
-        alpha_frequencies=alpha_frequencies,
-        ioc_score=score_ioc,
-        quadgram_score=score_quadgram,
-        alpha_length=alpha_length,
+    return AnalyseResult(
+        AnalysePayload(
+            total_length=total_length,
+            frequencies=frequencies,
+            alpha_frequencies=alpha_frequencies,
+            ioc_score=score_ioc,
+            quadgram_score=score_quadgram,
+            alpha_length=alpha_length,
+        )
     )

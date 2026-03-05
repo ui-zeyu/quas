@@ -1,32 +1,52 @@
 import heapq
 from dataclasses import dataclass
 
+from rich.table import Table
+
 from quas.analysis.alphabet import Alphabet
+from quas.core.protocols import CommandResult
 from quas.crypto.ciphers import SubstitutionCipher
 from quas.crypto.crackers import SubstituteCracker
 
 
 @dataclass
-class SubCrackResult:
+class SubCrackItem:
     key: str
     plaintext: str
     score: float
 
 
+@dataclass
+class SubPayload:
+    items: list[SubCrackItem]
+
+
+@dataclass
+class SubResult(CommandResult[SubPayload]):
+    data: SubPayload
+
+    def __rich__(self) -> Table:
+        table = Table("Key", "Plaintext", "Score", box=None)
+        for res in self.data.items:
+            table.add_row(res.key, res.plaintext, str(res.score))
+        return table
+
+
 def perform_sub_crack(
     ciphertext: str, calphabet: str, restarts: int, top: int
-) -> list[SubCrackResult]:
+) -> SubResult:
     calphabet_list = calphabet.split() if " " in calphabet else list(calphabet)
     alphabet_obj = Alphabet(calphabet_list)
     ciphertext_upper = ciphertext.upper()
     cindices = alphabet_obj.encode(ciphertext_upper)
-    results = SubstituteCracker(alphabet_obj, restarts).crack(cindices)
+
+    results = SubstituteCracker(alphabet_obj, restarts=restarts).crack(cindices)
 
     top_results = []
-    for key, score in heapq.nlargest(top, set(results), lambda x: x.score):
+    for key, score in heapq.nlargest(top, results, lambda x: x.score):
         cipher = SubstitutionCipher(alphabet_obj, key)
         plaintext = cipher.decrypt_str(ciphertext_upper)
         top_results.append(
-            SubCrackResult(cipher.palphabet().decode(key), plaintext, score)
+            SubCrackItem(cipher.palphabet().decode(key), plaintext, score)
         )
-    return top_results
+    return SubResult(SubPayload(top_results))

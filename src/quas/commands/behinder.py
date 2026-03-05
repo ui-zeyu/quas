@@ -1,8 +1,26 @@
+import sys
+from base64 import b64decode
+from collections.abc import Sequence
 from pathlib import Path
 
 import click
 
-from quas.context import ContextObject
+from quas.behinder.aes import Mode, decrypt
+from quas.behinder.base import BehinderResult
+from quas.commands.context import ContextObject
+
+
+def get_ciphertext(ciphertext: str | None) -> bytes:
+    ciphertext = sys.stdin.read() if ciphertext is None else ciphertext
+    return b64decode(ciphertext.strip())
+
+
+def get_passwords(password: Path) -> Sequence[bytes]:
+    return (
+        password.read_bytes().splitlines()
+        if password.exists()
+        else [str(password).encode()]
+    )
 
 
 @click.group(help="Behinder webshell tools")
@@ -16,41 +34,17 @@ def app() -> None: ...
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["ECB", "CBC"], case_sensitive=False),
-    default="ECB",
+    type=click.Choice(Mode, case_sensitive=False),
+    default=Mode.ECB,
     help="AES mode (ECB or CBC)",
 )
-def aes(ctx: ContextObject, ciphertext: str | None, wordlist: Path, mode: str) -> None:
-    from Cryptodome.Cipher import AES
-    from Cryptodome.Util.Padding import unpad
-
-    from quas.behinder.common import (
-        IV,
-        _derive_behinder_key,
-        _get_ciphertext,
-        _get_passwords,
-        _show_result,
-    )
-
+def aes(ctx: ContextObject, ciphertext: str | None, wordlist: Path, mode: Mode) -> None:
     console = ctx["console"]
-    ct = _get_ciphertext(ciphertext)
-    passwords = _get_passwords(wordlist)
-    aes_mode = AES.MODE_ECB if mode.upper() == "ECB" else AES.MODE_CBC
+    ct = get_ciphertext(ciphertext)
+    passwords = get_passwords(wordlist)
 
-    for password in passwords:
-        key = _derive_behinder_key(password)
-        cipher = (
-            AES.new(key, aes_mode)
-            if aes_mode == AES.MODE_ECB
-            else AES.new(key, aes_mode, iv=IV)
-        )
-
-        try:
-            plaintext = unpad(cipher.decrypt(ct), AES.block_size).decode()
-            _show_result(console, password, key, plaintext)
-            break
-        except UnicodeDecodeError, ValueError:
-            continue
+    if payload := decrypt(ct, passwords, mode):
+        console.print(BehinderResult(payload))
 
 
 @click.command(help="Decrypt Behinder XOR payload with wordlist")
@@ -58,30 +52,15 @@ def aes(ctx: ContextObject, ciphertext: str | None, wordlist: Path, mode: str) -
 @click.argument("ciphertext", required=False)
 @click.option("-w", "--wordlist", type=Path, required=True, help="Wordlist file path")
 def xor(ctx: ContextObject, ciphertext: str | None, wordlist: Path) -> None:
-    from itertools import cycle
-
-    from quas.behinder.common import (
-        _derive_behinder_key,
-        _get_ciphertext,
-        _get_passwords,
-        _show_result,
-    )
+    from quas.behinder.base import BehinderResult
+    from quas.behinder.xor import decrypt
 
     console = ctx["console"]
-    ct = _get_ciphertext(ciphertext)
-    passwords = _get_passwords(wordlist)
+    ct = get_ciphertext(ciphertext)
+    passwords = get_passwords(wordlist)
 
-    for password in passwords:
-        key = _derive_behinder_key(password)
-        key = key[1:] + key[:1]
-        plaintext = bytes(x ^ y for x, y in zip(ct, cycle(key), strict=True))
-
-        try:
-            decoded = plaintext.decode()
-            _show_result(console, password, key, decoded)
-            break
-        except UnicodeDecodeError:
-            continue
+    if payload := decrypt(ct, passwords):
+        console.print(BehinderResult(payload))
 
 
 app.add_command(aes)

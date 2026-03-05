@@ -33,10 +33,10 @@ def test_zip_4crc_bruteforce() -> None:
     targets = {crc32(b"0001") & 0xFFFFFFFF, crc32(b"0002") & 0xFFFFFFFF}
     charset = b"0123456789"
 
-    results = bruteforce(4, targets, charset, jobs=1)
+    results = bruteforce(4, targets, charset, jobs=1, crc2file={})
 
-    assert len(results) == 2
-    for _crc, filenames in results.items():
+    assert len(results.data.results) == 2
+    for _crc, filenames in results.data.results.items():
         assert len(filenames) >= 1
         for fname in filenames:
             assert len(fname) == 4
@@ -48,11 +48,11 @@ def test_zip_4crc_specific_crc() -> None:
     charset = b"0123456789"
     target_crc = crc32(b"1234") & 0xFFFFFFFF
 
-    results = bruteforce(4, {target_crc}, charset, jobs=1)
+    results = bruteforce(4, {target_crc}, charset, jobs=1, crc2file={})
 
-    assert target_crc in results
-    assert len(results[target_crc]) >= 1
-    assert "1234" in results[target_crc]
+    assert target_crc in results.data.results
+    assert len(results.data.results[target_crc]) >= 1
+    assert "1234" in results.data.results[target_crc]
 
 
 def test_zip_flag_file_exists() -> None:

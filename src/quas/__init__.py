@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
 
-from quas.context import ContextObject
+from quas.commands.context import ContextObject
 
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],

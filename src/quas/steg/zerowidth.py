@@ -1,7 +1,14 @@
+import heapq
 import math
+import operator
 import unicodedata
 from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from itertools import batched, permutations
+
+from rich.table import Table
+
+from quas.core.protocols import CommandResult
 
 
 def evaluator(text: str) -> float:
@@ -17,8 +24,32 @@ def evaluator(text: str) -> float:
     return score / len(text)
 
 
+@dataclass
+class ZeroWidthCrackItem:
+    steg: str
+    charset: Sequence[str]
+    score: float
+
+
+@dataclass
+class ZeroWidthPayload:
+    items: list[ZeroWidthCrackItem]
+
+
+@dataclass
+class ZeroWidthResult(CommandResult[ZeroWidthPayload]):
+    data: ZeroWidthPayload
+
+    def __rich__(self) -> Table:
+        table = Table("Charset", "Decoded Content", "Score", box=None)
+        for item in self.data.items:
+            charset_str = " ".join([repr(c).replace("'", "") for c in item.charset])
+            table.add_row(charset_str, item.steg, f"{item.score:.2f}")
+        return table
+
+
 class ZeroWidthDecoder:
-    def __init__(self, charset: Sequence[str]):
+    def __init__(self, charset: Sequence[str]) -> None:
         self.charset: Sequence[str] = charset
         self.radix: int = len(self.charset)
         self.codelength: int = math.ceil(math.log(65536, self.radix))
@@ -44,3 +75,13 @@ class ZeroWidthDecoder:
             for charset in permutations(zwcs, r):
                 if steg := cls(charset).decode(text):
                     yield steg, charset, evaluator(steg)
+
+    @classmethod
+    def perform_crack(cls, text: str, top: int) -> ZeroWidthResult:
+        results = cls.crack(text)
+        items = []
+        for steg, charset, score in heapq.nlargest(
+            top, results, operator.itemgetter(2)
+        ):
+            items.append(ZeroWidthCrackItem(steg, charset, score))
+        return ZeroWidthResult(ZeroWidthPayload(items))

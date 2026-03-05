@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from quas.context import ContextObject
+from quas.commands.context import ContextObject
 
 
 @click.group(help="Audio waveform analysis tools")
@@ -24,18 +24,15 @@ def dtmf(
     channel: int | None,
     dtype: str,
 ) -> None:
-    from quas.audio.base import AudioSignal, select_channel
+    from quas.audio.base import AudioSignal
     from quas.audio.dtmf import DTMFRecognizer
 
     console = ctx["console"]
     sig = AudioSignal.read(infile, dtype=dtype)
-
-    pipeline = select_channel(channel) | DTMFRecognizer(
-        tolerance=tolerance, window_ms=window
+    result = DTMFRecognizer.perform(
+        sig, tolerance=tolerance, window_ms=window, channel=channel
     )
-    digits = pipeline(sig)
-
-    console.print(f"DTMF digits: {digits}")
+    console.print(result)
 
 
 @click.command()
@@ -47,25 +44,16 @@ def dtmf(
 def frequency(
     ctx: ContextObject, infile: Path, top: int, channel: int | None, dtype: str
 ) -> None:
-    import numpy as np
-
     from quas.audio.base import AudioSignal, select_channel
     from quas.audio.frequency import frequency_analyzer
 
     console = ctx["console"]
     sig = AudioSignal.read(infile, dtype=dtype)
 
-    pipeline = select_channel(channel) | frequency_analyzer()
-    freqs, magnitude = pipeline(sig)
+    pipeline = select_channel(channel) | frequency_analyzer(top=top)
+    result = pipeline(sig)
 
-    peak_indices = np.argsort(magnitude)[-top:]
-    peak_freqs = np.sort(freqs[peak_indices]).astype(int)[::-1]
-    peak_magnitudes = magnitude[peak_indices]
-
-    console.print(f"Sample rate: {sig.sr} Hz")
-    console.print(f"Top {top} frequencies:")
-    for i, (freq, mag) in enumerate(zip(peak_freqs, peak_magnitudes, strict=True)):
-        console.print(f"{i}. Frequency: {freq} Hz, Magnitude: {mag:.2e}")
+    console.print(result)
 
 
 @click.command()
@@ -89,13 +77,11 @@ def lsb(
     console = ctx["console"]
     sig = AudioSignal.read(infile, dtype=dtype)
 
-    pipeline = select_channel(channel) | lsb_extractor(plane)
-    results = list(pipeline(sig))
+    pipeline = select_channel(channel) | lsb_extractor(plane=plane, outfile=outfile)
+    result = pipeline(sig)
+    result.save()
 
-    with outfile.open("wb") as f:
-        f.write(results[-1])
-
-    console.print(f"Extracted LSB plane {plane} to {outfile}")
+    console.print(result)
 
 
 @click.command()
@@ -113,19 +99,15 @@ def morse(
     channel: int | None,
     dtype: str,
 ) -> None:
-    from quas.audio.base import AudioSignal, select_channel
+    from quas.audio.base import AudioSignal
     from quas.audio.morse import MorseDecoder
 
     console = ctx["console"]
     sig = AudioSignal.read(infile, dtype=dtype)
-
-    pipeline = select_channel(channel) | MorseDecoder(
-        tolerance=tolerance, window_ms=window
+    result = MorseDecoder.perform(
+        sig, tolerance=tolerance, window_ms=window, channel=channel
     )
-    morse_code, text = pipeline(sig)
-
-    console.print(f"Morse: {morse_code}")
-    console.print(f"Text:  {text}")
+    console.print(result)
 
 
 @click.command()

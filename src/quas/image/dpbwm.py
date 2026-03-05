@@ -5,6 +5,8 @@ import numpy as np
 import random2
 from PIL import Image
 
+from quas.image.base import ImagePayload, ImageResult
+
 type ImageArray = np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]
 
 
@@ -43,3 +45,16 @@ class DoublePictureBlindWatermarkExtractor:
         watermark = np.clip(watermark, 0, 255).astype(np.uint8)
         watermark = self._reverse_shuffle(watermark)
         return Image.fromarray(watermark)
+
+    @classmethod
+    def perform(
+        cls,
+        original: Path,
+        watermarked: Path,
+        seed: int,
+        old: bool,
+        outfile: Path | None,
+    ) -> ImageResult:
+        extractor = cls(original, watermarked, seed, old)
+        watermark = extractor.extract()
+        return ImageResult(ImagePayload(image=watermark, outfile=outfile))

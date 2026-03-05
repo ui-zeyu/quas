@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from quas.context import ContextObject
+from quas.commands.context import ContextObject
 from quas.steg.base import TABLE_BASE32, TABLE_BASE64
 
 
@@ -13,31 +13,11 @@ def basex_factory(table: str) -> click.Command:
     @click.pass_obj
     @click.argument("infile", type=Path)
     def inner(ctx: ContextObject, infile: Path) -> None:
-        from functools import reduce
-        from itertools import batched
-        from math import lcm
+        from quas.steg.basex import perform_basex_decode
 
         console = ctx["console"]
-        rank = len(table).bit_length() - 1
-        num_pads = lcm(rank, 8) // rank
-
-        bits = bytearray()
-        for line in infile.read_text().splitlines():
-            line = line.rstrip("=")
-            if len(line) % num_pads == 0:
-                continue
-
-            x = table.find(line[-1])
-            num_bits = len(line) * rank % 8
-            for i in reversed(range(num_bits)):
-                bits.append((x >> i) & 1)
-        console.print(*(str(x) for x in bits), sep="")
-
-        steg_data = bytes(
-            reduce(lambda s, x: s << 1 | x, byte, 0)
-            for byte in batched(bits, 8, strict=False)
-        ).decode(errors="replace")
-        console.print(steg_data)
+        result = perform_basex_decode(infile.read_text().splitlines(), table)
+        console.print(result)
 
     return inner
 
@@ -57,24 +37,15 @@ def app() -> None: ...
     help="Number of top results to display",
 )
 def zerowidth(ctx: ContextObject, text: str | None, top: int) -> None:
-    import heapq
-    import operator
     from sys import stdin
-
-    from rich.table import Table
 
     from quas.steg.zerowidth import ZeroWidthDecoder
 
     console = ctx["console"]
 
     text = text or stdin.read()
-    results = ZeroWidthDecoder.crack(text)
-
-    table = Table("Charset", "Decoded Content", "Score", box=None)
-    for steg, charset, score in heapq.nlargest(top, results, operator.itemgetter(2)):
-        charset_str = " ".join([repr(c).replace("'", "") for c in charset])
-        table.add_row(charset_str, steg, f"{score:.2f}")
-    console.print(table)
+    result = ZeroWidthDecoder.perform_crack(text, top)
+    console.print(result)
 
 
 app.add_command(basex_factory(TABLE_BASE32), "b32")

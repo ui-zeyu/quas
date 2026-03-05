@@ -2,7 +2,8 @@ from pathlib import Path
 
 import click
 
-from quas.context import ContextObject
+from quas.commands.context import ContextObject
+from quas.image.spbwm import Mode
 
 
 @click.group(help="Image steganography tools")
@@ -28,8 +29,10 @@ def extract(
 ) -> None:
     from quas.image.extract import extract_pixels
 
-    img = extract_pixels(infile, x, y, stepx, stepy)
-    img.save(outfile) if outfile else img.show()
+    console = ctx["console"]
+    result = extract_pixels(infile, x, y, stepx, stepy, outfile)
+    result.save_or_show()
+    console.print(result)
 
 
 @click.command(help="Inspect image pixels by coordinate sampling")
@@ -55,21 +58,11 @@ def inspect(
     stepy: int,
     count: int,
 ) -> None:
-    import numpy as np
-    from PIL import Image
-    from rich.table import Table
+    from quas.image.inspect import perform_inspect
 
     console = ctx["console"]
-    img = Image.open(infile).convert("RGBA")
-    arr = np.array(img)
-    pixels = arr[y::stepy, x::stepx]
-    pixels = pixels.reshape(-1, 4)
-
-    table = Table("No.", "RGBA", box=None, highlight=True)
-    display_pixels = pixels if count == 0 else pixels[:count]
-    for i, (r, g, b, a) in enumerate(display_pixels):
-        table.add_row(str(i), f"[ {r}, {g}, {b}, {a} ]")
-    console.print(table)
+    result = perform_inspect(infile, x, y, stepx, stepy, count)
+    console.print(result)
 
 
 @click.command(
@@ -89,25 +82,14 @@ def lsbaes(
 ) -> None:
     import os
 
-    import numpy as np
-
-    from quas.image.lsbaes import analyse as lsbaes_analyse
-    from quas.image.lsbaes import crack, extract_lsb_bits, unpack_iv_ct
+    from quas.image.lsbaes import perform_lsbaes
 
     console = ctx["console"]
     if workers is None:
         workers = os.cpu_count() or 12
 
-    bits = extract_lsb_bits(image_path)
-    bytes_data = np.packbits(bits)
-    iv, ct = unpack_iv_ct(console, bytes_data)
-    lsbaes_analyse(bits)
-
-    if result := crack(iv, ct, wordlist, workers):
-        console.print(f"[bold]Password found:[/bold] {result.password}")
-        console.print(f"[bold]Decrypted text:[/bold] {result.plaintext}")
-    else:
-        console.print("[bold red]No valid password found[/bold red]")
+    result = perform_lsbaes(image_path, wordlist, workers, console)
+    console.print(result)
 
 
 @click.command(
@@ -119,10 +101,8 @@ def lsbaes(
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(
-        ["DFT_RESIZE", "DFT_PAD", "DFT_CROP", "DCT"], case_sensitive=False
-    ),
-    default="DFT_RESIZE",
+    type=click.Choice(Mode, case_sensitive=False),
+    default=Mode.DFT_RESIZE,
     help="Processing mode",
 )
 @click.option(
@@ -136,18 +116,13 @@ def spbwm(
     ctx: ContextObject,
     infile: Path,
     outfile: Path | None,
-    mode: str,
+    mode: Mode,
     brightness: float,
 ) -> None:
-    from PIL import Image
-
-    from quas.image.spbwm import Mode as SPBWMMode
-
-    image = Image.open(infile)
-    mode_enum = SPBWMMode[mode.upper()]
-    extractor = mode_enum.to_extractor(image, brightness)
-    watermark = extractor.extract()
-    watermark.save(outfile) if outfile else watermark.show()
+    console = ctx["console"]
+    result = Mode.perform(infile, outfile, mode, brightness)
+    result.save_or_show()
+    console.print(result)
 
 
 @click.command(help="Extract double image blind watermark")
@@ -172,9 +147,12 @@ def dpbwm(
 ) -> None:
     from quas.image.dpbwm import DoublePictureBlindWatermarkExtractor
 
-    extractor = DoublePictureBlindWatermarkExtractor(original, watermarked, seed, old)
-    watermark = extractor.extract()
-    watermark.save(outfile) if outfile else watermark.show()
+    console = ctx["console"]
+    result = DoublePictureBlindWatermarkExtractor.perform(
+        original, watermarked, seed, old, outfile
+    )
+    result.save_or_show()
+    console.print(result)
 
 
 app.add_command(extract)

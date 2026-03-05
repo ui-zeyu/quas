@@ -10,9 +10,9 @@ def test_zip_integration():
     charset = "0123456789"
     targets = {crc32(b"0001") & 0xFFFFFFFF, crc32(b"0002") & 0xFFFFFFFF}
 
-    results = bruteforce(4, targets, charset.encode(), jobs=1)
+    results = bruteforce(4, targets, charset.encode(), jobs=1, crc2file={})
 
-    assert len(results) == 2
+    assert len(results.data.results) == 2
 
 
 def test_ihdr_integration():

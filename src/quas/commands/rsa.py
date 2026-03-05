@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import click
 from gmpy2 import mpz
 
-from quas.context import ContextObject
+from quas.commands.context import ContextObject
 
 
 @click.command(help="RSA decryption and analysis tool")
@@ -30,19 +30,16 @@ def app(
     limit: int,
 ) -> None:
     from Cryptodome.Util.number import long_to_bytes
-    from rich.panel import Panel
 
     from quas.rsa import dispatcher
+    from quas.rsa.base import RSAPayload, RSAResult
 
     console = ctx["console"]
 
     with console.status("Starting analysis...") as status:
         for m in dispatcher(ns, es, cs, p, q, d, dp, dq, limit, status):
             plaintext = long_to_bytes(int(m)).decode(errors="replace")
-
-            panel = Panel(
-                f"[bold]m:[/bold] {m}\n[bold]plaintext:[/bold] {plaintext}",
-                title=str(status.status),
-                border_style="green",
+            result = RSAResult(
+                RSAPayload(m=int(m), plaintext=plaintext, status=str(status.status))
             )
-            console.print(panel)
+            console.print(result)

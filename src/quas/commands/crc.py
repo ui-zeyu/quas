@@ -2,8 +2,7 @@ from pathlib import Path
 
 import click
 
-from quas.context import ContextObject
-from quas.crc.ihdr import MAX_DIMENSION
+from quas.commands.context import ContextObject
 
 
 @click.group(help="CRC and checksum tools")
@@ -17,13 +16,13 @@ def app() -> None: ...
 @click.option(
     "--max-width",
     type=int,
-    default=MAX_DIMENSION,
+    default=5000,
     help="Maximum width to search",
 )
 @click.option(
     "--max-height",
     type=int,
-    default=MAX_DIMENSION,
+    default=5000,
     help="Maximum height to search",
 )
 def ihdr(
@@ -41,7 +40,6 @@ def ihdr(
 
     data = infile.read_bytes()
 
-    # Extract original dimensions to show the user
     try:
         orig_w, orig_h = unpack(">II", data[16:24])
         console.print(f"[bold]Original dimensions:[/bold] {orig_w} x {orig_h}")
@@ -57,11 +55,11 @@ def ihdr(
             return
 
     if result:
-        console.print(f"\n[green]Found: {result.width} x {result.height}[/green]")
+        console.print(result)
         if outfile:
-            result.image.save(outfile)
+            result.data.image.save(outfile)
         else:
-            result.image.show()
+            result.data.image.show()
     else:
         console.print("\n[red]Failed to find matching dimensions.[/red]")
 
@@ -91,7 +89,6 @@ def zip_cmd(
     import zipfile
 
     import toolz
-    from rich.table import Table
 
     from quas.crc.zip import bruteforce
 
@@ -114,12 +111,8 @@ def zip_cmd(
 
     with zipfile.ZipFile(infile, "r") as zf:
         crc2file = {f.CRC: f.filename for f in zf.infolist() if f.file_size == size}
-        results = bruteforce(size, set(crc2file.keys()), bytes(alphabet), jobs)
-
-        table = Table("File", "CRC32", "Found", box=None, highlight=True)
-        for crc, contents in results.items():
-            table.add_row(crc2file[crc], f"{crc:08X}", ", ".join(contents))
-        console.print(table)
+        result = bruteforce(size, set(crc2file.keys()), bytes(alphabet), jobs, crc2file)
+        console.print(result)
 
 
 app.add_command(ihdr)

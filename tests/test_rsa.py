@@ -3,8 +3,8 @@ from Cryptodome.Util.number import long_to_bytes
 from gmpy2 import gcd, mpz, powmod
 from rich.console import Console
 
+from quas.commands.context import ContextObject
 from quas.commands.rsa import app as rsa_command
-from quas.context import ContextObject
 from quas.rsa import (
     common_modulus,
     factor_fermat,
