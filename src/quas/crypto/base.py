@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from typing import NamedTuple, Protocol, override
 
@@ -24,10 +23,8 @@ class ByteCipher(Cipher[bytes]):
         return self.decrypt(ciphertext).decode()
 
 
-class SubstituteCipher(ABC, Cipher[Sequence[int]]):
-    @abstractmethod
-    def decrypt_letter(self, x: int) -> int:
-        raise NotImplementedError
+class SubstituteCipher(Cipher[Sequence[int]], Protocol):
+    def decrypt_letter(self, x: int) -> int: ...
 
     def calphabet(self) -> Alphabet:
         return english_upper
@@ -78,14 +75,10 @@ class Cracker[K: Key, CT](Protocol):
     def crack(self, ciphertext: CT) -> Iterator[Result[K]]: ...
 
 
-class BruteForceCracker[K: Key, CT](ABC, Cracker[K, CT]):
-    @abstractmethod
-    def cipher(self, key: K) -> Cipher[CT]:
-        raise NotImplementedError
+class BruteForceCracker[K: Key, CT](Cracker[K, CT], Protocol):
+    def cipher(self, key: K) -> Cipher[CT]: ...
 
-    @abstractmethod
-    def keyspace(self) -> Iterator[K]:
-        raise NotImplementedError
+    def keyspace(self) -> Iterator[K]: ...
 
     @override
     def crack(self, ciphertext: CT) -> Iterator[Result[K]]:

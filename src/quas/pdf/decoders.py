@@ -2,16 +2,15 @@ import base64
 import binascii
 import re
 import zlib
-from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import override
+from typing import Protocol, override
 
 
 class DecoderRegistry:
     DECODERS: dict[str, Callable[[bytes], bytes]] = {}
 
     @classmethod
-    def registry(cls, decoder: type[DecoderBase]) -> None:
+    def registry(cls, decoder: type[Decoder]) -> None:
         for name in decoder.NAMES:
             cls.DECODERS[name] = decoder.decode
 
@@ -26,20 +25,18 @@ class DecoderRegistry:
         return data
 
 
-class DecoderBase(ABC):
+class Decoder(Protocol):
     NAMES: Sequence[str]
 
     @classmethod
-    @abstractmethod
-    def decode(cls, data: bytes) -> bytes:
-        raise NotImplementedError
+    def decode(cls, data: bytes) -> bytes: ...
 
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
         DecoderRegistry.registry(cls)
 
 
-class ZlibDecoder(DecoderBase):
+class ZlibDecoder(Decoder):
     NAMES = ("/Fl", "/FlateDecode")
 
     @override
@@ -48,7 +45,7 @@ class ZlibDecoder(DecoderBase):
         return zlib.decompress(data)
 
 
-class AsciiHexDecoder(DecoderBase):
+class AsciiHexDecoder(Decoder):
     NAMES = ("/AHx", "/ASCIIHexDecode")
 
     @override
@@ -59,7 +56,7 @@ class AsciiHexDecoder(DecoderBase):
         return binascii.unhexlify(data)
 
 
-class Ascii85Decoder(DecoderBase):
+class Ascii85Decoder(Decoder):
     NAMES = ("/A85", "/ASCII85Decode")
 
     @override
