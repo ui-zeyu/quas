@@ -33,43 +33,37 @@ def ihdr(
     max_height: int,
     outfile: Path | None,
 ) -> None:
-    from binascii import crc32
-    from io import BytesIO
-    from struct import pack, unpack
+    from struct import unpack
 
-    from PIL import Image, UnidentifiedImageError
-
-    from quas.crc.ihdr import IHDR_CHUNK_TYPE, PNG_SIGNATURE
+    from quas.crc.ihdr import recover_ihdr_dimensions
 
     console = ctx["console"]
 
     data = infile.read_bytes()
-    if data[:8] != PNG_SIGNATURE:
-        raise ValueError("Invalid PNG signature")
 
-    chunk_length, chunk_type = unpack(">I4s", data[8:16])
-    if chunk_length != 0x0D or chunk_type != IHDR_CHUNK_TYPE:
-        raise ValueError("First chunk is not IHDR")
-
-    (width, height, ihdr_suffix, target) = unpack(">II5sI", data[16:33])
-    console.print(f"[bold]Original dimensions:[/bold] {width} x {height}")
-    console.print(f"[bold]Bruteforce range:[/bold] 1-{max_width} x 1-{max_height}")
+    # Extract original dimensions to show the user
+    try:
+        orig_w, orig_h = unpack(">II", data[16:24])
+        console.print(f"[bold]Original dimensions:[/bold] {orig_w} x {orig_h}")
+        console.print(f"[bold]Bruteforce range:[/bold] 1-{max_width} x 1-{max_height}")
+    except Exception:
+        pass
 
     with console.status("[bold green]Bruteforcing...[/bold green]"):
-        for x in range(1, max_width + 1):
-            for y in range(1, max_height + 1):
-                ihdr_data = IHDR_CHUNK_TYPE + pack(">II5s", x, y, ihdr_suffix)
-                crc = crc32(ihdr_data) & 0xFFFFFFFF
-                if crc == target:
-                    chunk = b"\x00\x00\x00\x0d" + ihdr_data + pack(">I", crc)
-                    image_data = PNG_SIGNATURE + chunk + data[33:]
+        try:
+            result = recover_ihdr_dimensions(data, max_width, max_height)
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            return
 
-                    try:
-                        img = Image.open(BytesIO(image_data))
-                        console.print(f"\n[green]Found: {x} x {y}[/green]")
-                        return img.save(outfile) if outfile is not None else img.show()
-                    except UnidentifiedImageError:
-                        continue
+    if result:
+        console.print(f"\n[green]Found: {result.width} x {result.height}[/green]")
+        if outfile:
+            result.image.save(outfile)
+        else:
+            result.image.show()
+    else:
+        console.print("\n[red]Failed to find matching dimensions.[/red]")
 
 
 @click.command(help="Bruteforce ZIP filenames by CRC32")

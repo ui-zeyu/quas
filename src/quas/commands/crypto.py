@@ -41,25 +41,20 @@ def app() -> None: ...
 @click.argument("ciphertext", type=str, required=False)
 @click.option("-t", "--top", type=int, default=10, help="Show top N results")
 def affine(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
-    import heapq
     from sys import stdin
 
     from rich.table import Table
 
-    from quas.analysis import english_upper
-    from quas.crypto.ciphers import AffineCipher
-    from quas.crypto.crackers import AffineCracker
+    from quas.crypto.affine import perform_affine_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
-    cindices = english_upper.encode(ciphertext.upper())
-    results = AffineCracker().crack(cindices)
+
+    results = perform_affine_crack(ciphertext, top)
 
     table = Table("a", "b", "Plaintext", "Score", box=None)
-    for key, score in heapq.nlargest(top, results, lambda x: x.score):
-        cipher = AffineCipher(key)
-        plaintext = cipher.decrypt_str(ciphertext)
-        table.add_row(str(key.a), str(key.b), plaintext, str(score))
+    for res in results:
+        table.add_row(str(res.a), str(res.b), res.plaintext, str(res.score))
     console.print(table, markup=False)
 
 
@@ -76,16 +71,12 @@ def analyse(
     ctx: ContextObject, hex_flag: bool, b64_flag: bool, ciphertext: str | None
 ) -> None:
     from base64 import b64decode
-    from collections import Counter
     from sys import stdin
 
-    import numpy as np
     from rich.panel import Panel
     from rich.table import Table
 
-    from quas.analysis import english_upper
-    from quas.analysis.ioc import IndexOfCoincidence
-    from quas.analysis.quadgram import quadgram
+    from quas.crypto.analyse import perform_analysis
 
     if hex_flag and b64_flag:
         raise click.BadParameter("Cannot specify both --hex and --base64")
@@ -97,27 +88,33 @@ def analyse(
         ciphertext = b64decode(ciphertext).decode(errors="ignore")
     ciphertext = ciphertext.strip()
 
+    result = perform_analysis(ciphertext)
+
     table = Table("Char", "Count", "Percent", "Binary", box=None, expand=True)
-    for char, count in Counter(ciphertext).most_common():
-        percent = count / len(ciphertext) * 100
-        table.add_row(char, str(count), f"{percent:.2f}%", f"{ord(char):08b}")
+    for stat in result.frequencies:
+        table.add_row(stat.char, str(stat.count), f"{stat.percent:.2f}%", stat.binary)
     console.print(Panel(table, title="Frequency Analysis"))
 
-    alpha_text = "".join(x for x in ciphertext if x.isalpha()).upper()
     table = Table("Char", "Count", "Percent", "Standard", box=None, expand=True)
-    for char, count in Counter(alpha_text).most_common():
-        percent = count / len(alpha_text) * 100
-        standard = STANDARD_FREQUENCY.get(char, 0.0)
-        table.add_row(char, str(count), f"{percent:.2f}%", f"{standard:.2f}%")
+    for stat in result.alpha_frequencies:
+        standard_str = (
+            f"{stat.standard_percent:.2f}%"
+            if stat.standard_percent is not None
+            else "0.00%"
+        )
+        table.add_row(stat.char, str(stat.count), f"{stat.percent:.2f}%", standard_str)
     console.print(Panel(table, title="Frequency Analysis (Upper Case)"))
 
-    indices = np.array(english_upper.encode(alpha_text), dtype=np.uint32)
-    score_ioc = IndexOfCoincidence().score(indices)
-    score_quadgram = quadgram.score(indices)
-
     table = Table("Scorer", "Score", "Length", "Normal Range", box=None, expand=True)
-    table.add_row("IoC", f"{score_ioc:.3f}", str(indices.size), "0.0567 - 0.0767")
-    table.add_row("Quadgram", f"{score_quadgram:.3f}", str(indices.size), "10.0 - 11.0")
+    table.add_row(
+        "IoC", f"{result.ioc_score:.3f}", str(result.alpha_length), "0.0567 - 0.0767"
+    )
+    table.add_row(
+        "Quadgram",
+        f"{result.quadgram_score:.3f}",
+        str(result.alpha_length),
+        "10.0 - 11.0",
+    )
     console.print(Panel(table, title="Scoring Analysis"))
 
 
@@ -126,25 +123,20 @@ def analyse(
 @click.argument("ciphertext", type=str, required=False)
 @click.option("-t", "--top", type=int, default=10, help="Show top N results")
 def caesar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
-    import heapq
     from sys import stdin
 
     from rich.table import Table
 
-    from quas.analysis import english_upper
-    from quas.crypto.ciphers import CaesarCipher
-    from quas.crypto.crackers import CaesarCracker
+    from quas.crypto.caesar import perform_caesar_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
-    cindices = english_upper.encode(ciphertext.upper())
-    results = CaesarCracker().crack(cindices)
+
+    results = perform_caesar_crack(ciphertext, top)
 
     table = Table("Shift", "Plaintext", "Score", box=None)
-    for key, score in heapq.nlargest(top, results, lambda x: x.score):
-        cipher = CaesarCipher(key)
-        plaintext = cipher.decrypt_str(ciphertext)
-        table.add_row(str(key.value), plaintext, str(score))
+    for res in results:
+        table.add_row(str(res.shift), res.plaintext, str(res.score))
     console.print(table, markup=False)
 
 
@@ -153,23 +145,20 @@ def caesar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
 @click.argument("ciphertext", type=str, required=False)
 @click.option("-t", "--top", type=int, default=10, help="Show top N results")
 def columnar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
-    import heapq
     from sys import stdin
 
     from rich.table import Table
 
-    from quas.crypto.ciphers import ColumnarCipher
-    from quas.crypto.crackers import ColumnarCracker
+    from quas.crypto.columnar import perform_columnar_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
-    results = ColumnarCracker().crack(ciphertext.upper())
+
+    results = perform_columnar_crack(ciphertext, top)
 
     table = Table("Cols", "Plaintext", "Score", box=None)
-    for key, score in heapq.nlargest(top, results, lambda x: x.score):
-        cipher = ColumnarCipher(key)
-        plaintext = cipher.decrypt_str(ciphertext)
-        table.add_row(str(key.cols), plaintext, str(score))
+    for res in results:
+        table.add_row(str(res.cols), res.plaintext, str(res.score))
     console.print(table, markup=False)
 
 
@@ -178,23 +167,20 @@ def columnar(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
 @click.argument("ciphertext", type=str, required=False)
 @click.option("-t", "--top", type=int, default=10, help="Show top N results")
 def railfence(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
-    import heapq
     from sys import stdin
 
     from rich.table import Table
 
-    from quas.crypto.ciphers import RailFenceCipher
-    from quas.crypto.crackers import RailFenceCracker
+    from quas.crypto.railfence import perform_railfence_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
-    results = RailFenceCracker().crack(ciphertext.upper())
+
+    results = perform_railfence_crack(ciphertext, top)
 
     table = Table("Rails", "Plaintext", "Score", box=None)
-    for key, score in heapq.nlargest(top, results, lambda x: x.score):
-        cipher = RailFenceCipher(key)
-        plaintext = cipher.decrypt_str(ciphertext)
-        table.add_row(str(key.rails), plaintext, str(score))
+    for res in results:
+        table.add_row(str(res.rails), res.plaintext, str(res.score))
     console.print(table, markup=False)
 
 
@@ -215,27 +201,20 @@ def railfence(ctx: ContextObject, ciphertext: str | None, top: int) -> None:
 def sub(
     ctx: ContextObject, ciphertext: str | None, calphabet: str, restarts: int, top: int
 ) -> None:
-    import heapq
     from sys import stdin
 
     from rich.table import Table
 
-    from quas.analysis.alphabet import Alphabet
-    from quas.crypto.ciphers import SubstitutionCipher
-    from quas.crypto.crackers import SubstituteCracker
+    from quas.crypto.substitute import perform_sub_crack
 
     console = ctx["console"]
-    calphabet_list = calphabet.split() if " " in calphabet else list(calphabet)
-    alphabet_obj = Alphabet(calphabet_list)
-    ciphertext = (ciphertext or stdin.read()).strip().upper()
-    cindices = alphabet_obj.encode(ciphertext)
-    results = SubstituteCracker(alphabet_obj, restarts).crack(cindices)
+    ciphertext = (ciphertext or stdin.read()).strip()
+
+    results = perform_sub_crack(ciphertext, calphabet, restarts, top)
 
     table = Table("Key", "Plaintext", "Score", box=None)
-    for key, score in heapq.nlargest(top, set(results), lambda x: x.score):
-        cipher = SubstitutionCipher(alphabet_obj, key)
-        plaintext = cipher.decrypt_str(ciphertext)
-        table.add_row(cipher.palphabet().decode(key), plaintext, str(score))
+    for res in results:
+        table.add_row(res.key, res.plaintext, str(res.score))
     console.print(table, markup=False)
 
 
@@ -244,24 +223,20 @@ def sub(
 @click.option("-t", "--top", type=int, default=10, help="Show top N results")
 @click.argument("ciphertext", type=str, required=False)
 def xor(ctx: ContextObject, top: int, ciphertext: str | None) -> None:
-    import heapq
     from sys import stdin
 
     from rich.table import Table
 
-    from quas.crypto.ciphers import XorCipher
-    from quas.crypto.crackers import XorCracker
+    from quas.crypto.xor import perform_xor_crack
 
     console = ctx["console"]
     ciphertext = (ciphertext or stdin.read()).strip()
-    ciphertext_bytes = bytes.fromhex(ciphertext)
-    results = XorCracker().crack(ciphertext_bytes)
+
+    results = perform_xor_crack(ciphertext, top)
 
     table = Table("Key (Hex)", "Plaintext (Bytes)", "Score", box=None)
-    for key, score in heapq.nlargest(top, results, lambda x: x.score):
-        cipher = XorCipher(key)
-        plaintext = cipher.decrypt(ciphertext_bytes)
-        table.add_row(key.value.hex(), str(plaintext), str(score))
+    for res in results:
+        table.add_row(res.key_hex, str(res.plaintext), str(res.score))
     console.print(table, markup=False)
 
 
