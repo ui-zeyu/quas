@@ -7,6 +7,8 @@ import click
 import numpy as np
 from PIL import Image
 from scipy.fft import dctn
+from textual_image.renderable import Image as TermImage
+from textual_image.renderable import SixelImage, TGPImage
 
 from quas.context import ContextObject
 
@@ -179,14 +181,14 @@ def spbwm(
     mode: Mode,
     brightness: float,
 ) -> None:
-    console = ctx["console"]
-
     image = Image.open(infile)
     extractor = mode.to_extractor(image, brightness)
     watermark = extractor.extract()
 
-    if outfile:
-        watermark.save(outfile)
-        console.print(f"[green]Watermark saved to:[/green] {outfile}")
-    else:
-        watermark.show()
+    match outfile:
+        case Path():
+            watermark.save(outfile)
+        case None if TermImage in [TGPImage, SixelImage]:
+            ctx["console"].print(TermImage(watermark))
+        case _:
+            watermark.show()

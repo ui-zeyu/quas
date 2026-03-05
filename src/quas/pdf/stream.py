@@ -61,11 +61,7 @@ class RegexScanner(StreamScanner):
         dict_number = pp.common.number
         dict_bool = pp.Keyword("true") | pp.Keyword("false")
         dict_null = pp.Keyword("null")
-        dict_string = pp.nested_expr("(", ")") | pp.nested_expr(
-            "<",
-            ">",
-            ignore_expr=None,
-        )
+        dict_string = pp.nested_expr("(", ")") | pp.nested_expr("<", ">")
         dict_reference = pp.Group(pp.Word(pp.nums) + pp.Word(pp.nums) + pp.Keyword("R"))
         dict_array = pp.Group(LBRACK + pp.ZeroOrMore(dict_value) + RBRACK)
         dict_entry = pp.Group(dict_key + dict_value)

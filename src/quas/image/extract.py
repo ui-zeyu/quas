@@ -3,6 +3,8 @@ from pathlib import Path
 import click
 import numpy as np
 from PIL import Image
+from textual_image.renderable import Image as TermImage
+from textual_image.renderable import SixelImage, TGPImage
 
 from quas.context import ContextObject
 
@@ -28,4 +30,11 @@ def extract(
     arr = np.array(img)
     pixels = arr[y::stepy, x::stepx]
     img = Image.fromarray(pixels, "RGBA")
-    img.save(outfile) if outfile is not None else img.show()
+
+    match outfile:
+        case Path():
+            img.save(outfile)
+        case None if TermImage in [TGPImage, SixelImage]:
+            ctx["console"].print(TermImage(img))
+        case _:
+            img.show()

@@ -5,6 +5,10 @@ import click
 import numpy as np
 import random2
 from PIL import Image
+from textual_image.renderable import Image as TermImage
+from textual_image.renderable import SixelImage, TGPImage
+
+from quas.context import ContextObject
 
 type ImageArray = np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]
 
@@ -47,6 +51,7 @@ class DoublePictureBlindWatermarkExtractor:
 
 
 @click.command()
+@click.pass_obj
 @click.option(
     "-s",
     "--seed",
@@ -58,12 +63,21 @@ class DoublePictureBlindWatermarkExtractor:
 @click.argument("watermarked", type=Path)
 @click.argument("outfile", type=Path, required=False)
 def dpbwm(
+    ctx: ContextObject,
     seed: int,
     old: bool,
     original: Path,
     watermarked: Path,
     outfile: Path | None,
 ) -> None:
+
     extractor = DoublePictureBlindWatermarkExtractor(original, watermarked, seed, old)
     watermark = extractor.extract()
-    watermark.show() if outfile is None else watermark.save(outfile)
+
+    match outfile:
+        case Path():
+            watermark.save(outfile)
+        case None if TermImage in [TGPImage, SixelImage]:
+            ctx["console"].print(TermImage(watermark))
+        case _:
+            watermark.show()

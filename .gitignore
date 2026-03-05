@@ -20,4 +20,5 @@ wheels/
 
 # Development files
 AGENTS.md
+GEMINI.md
 uv.lock
