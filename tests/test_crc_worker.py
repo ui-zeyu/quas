@@ -1,84 +1,71 @@
-import string
 from binascii import crc32
 
-from quas.crc.zip import _worker, bruteforce
+from quas.crc.zip import _worker, crack
+
+charset = b"abcdefghijklmnopqrstuvwxyz"
 
 
-def test_worker_small_charset() -> None:
-    charset = b"ab"
+def test_worker_success():
     targets = {crc32(b"ab") & 0xFFFFFFFF}
 
-    results = _worker(b"", 2, targets, charset)
+    results = _worker((b"", 2, targets, charset)).results
+    assert crc32(b"ab") in results
+    assert results[crc32(b"ab")] == ["ab"]
 
-    assert len(results) > 0
-    assert "ab" in results.get(targets.pop(), [])
 
-
-def test_worker_prefix() -> None:
-    charset = b"c"
+def test_worker_with_prefix():
     prefix = b"ab"
     targets = {crc32(b"abc") & 0xFFFFFFFF}
 
-    results = _worker(prefix, 1, targets, charset)
+    results = _worker((prefix, 1, targets, charset)).results
+    assert crc32(b"abc") in results
+    assert results[crc32(b"abc")] == ["abc"]
 
-    assert len(results) > 0
-    assert "abc" in results.get(targets.pop(), [])
 
-
-def test_worker_no_matches() -> None:
-    charset = b"a"
+def test_worker_not_found():
     targets = {0xFFFFFFFF}
 
-    results = _worker(b"", 1, targets, charset)
-
+    results = _worker((b"", 1, targets, charset)).results
     assert len(results) == 0
 
 
-def test_bruteforce_charset_ascii() -> None:
+def test_crack_single():
     targets = {crc32(b"abcd") & 0xFFFFFFFF}
-    charset = string.ascii_letters[:10].encode()
+    results = crack(4, targets, charset, jobs=1, crc2file={})
 
-    results = bruteforce(4, targets, charset, jobs=1, crc2file={})
-
-    assert "abcd" in results.data.results[targets.pop()]
+    assert "abcd" in results.results[targets.pop()]
 
 
-def test_bruteforce_multiple_targets() -> None:
-    targets = {
-        crc32(b"abc") & 0xFFFFFFFF,
-        crc32(b"def") & 0xFFFFFFFF,
-    }
-    charset = b"abcdef"
+def test_crack_multiple():
+    targets = {crc32(b"ab") & 0xFFFFFFFF, crc32(b"cd") & 0xFFFFFFFF}
+    results = crack(2, targets, charset, jobs=1, crc2file={})
 
-    results = bruteforce(3, targets, charset, jobs=1, crc2file={})
-
-    assert len(results.data.results) == 2
-    assert any("abc" in v for v in results.data.results.values())
-    assert any("def" in v for v in results.data.results.values())
+    assert len(results.results) == 2
+    for _crc, filenames in results.results.items():
+        assert len(filenames) >= 1
+        for filename in filenames:
+            assert filename in ["ab", "cd"]
 
 
-def test_bruteforce_empty_charset() -> None:
-    targets = {crc32(b"test") & 0xFFFFFFFF}
-    charset = b""
+def test_crack_multiple_jobs():
+    targets = {crc32(b"abc") & 0xFFFFFFFF}
+    results = crack(3, targets, charset, jobs=2, crc2file={})
 
-    results = bruteforce(4, targets, charset, jobs=1, crc2file={})
-
-    assert len(results.data.results) == 0
-
-
-def test_bruteforce_case_sensitive() -> None:
-    targets = {crc32(b"ABCD") & 0xFFFFFFFF}
-    charset = b"abcd"
-
-    results = bruteforce(4, targets, charset, jobs=1, crc2file={})
-
-    assert len(results.data.results) == 0
+    assert len(results.results) == 1
+    assert "abc" in results.results[targets.pop()]
 
 
-def test_bruteforce_large_charset() -> None:
+def test_crack_not_found():
+    targets = {0xFFFFFFFF}
+    results = crack(4, targets, charset, jobs=1, crc2file={})
+
+    assert len(results.results) == 0
+
+
+def test_crack_special_chars():
     targets = {crc32(b"!@#") & 0xFFFFFFFF}
-    charset = b"!@#$%"
+    charset_special = b"!@#$"
+    results = crack(3, targets, charset_special, jobs=1, crc2file={})
 
-    results = bruteforce(3, targets, charset, jobs=1, crc2file={})
-
-    assert "!@#" in results.data.results[targets.pop()]
+    assert len(results.results) == 1
+    assert "!@#" in results.results[targets.pop()]

@@ -6,7 +6,6 @@ import numpy as np
 from rich.text import Text
 
 from quas.audio.base import AudioSignal, Pipeline
-from quas.core.protocols import CommandResult
 
 
 @dataclass
@@ -15,21 +14,16 @@ class LsbPayload:
     outfile: Path
     results: Sequence[bytes]
 
-
-@dataclass
-class LsbResult(CommandResult[LsbPayload]):
-    data: LsbPayload
-
     def __rich__(self) -> Text:
-        return Text(f"Extracted LSB plane {self.data.plane} to {self.data.outfile}")
+        return Text(f"Extracted LSB plane {self.plane} to {self.outfile}")
 
     def save(self) -> None:
-        with self.data.outfile.open("wb") as f:
-            f.write(self.data.results[-1])
+        with self.outfile.open("wb") as f:
+            f.write(self.results[-1])
 
 
-def lsb_extractor(plane: int, outfile: Path) -> Pipeline[AudioSignal, LsbResult]:
-    def analyze(sig: AudioSignal) -> LsbResult:
+def lsb_extractor(plane: int, outfile: Path) -> Pipeline[AudioSignal, LsbPayload]:
+    def analyze(sig: AudioSignal) -> LsbPayload:
         if not np.issubdtype(sig.y.dtype, np.integer):
             raise TypeError("LSB extraction requires integer samples")
         bits = (sig.y >> (plane - 1)) & 1
@@ -39,6 +33,6 @@ def lsb_extractor(plane: int, outfile: Path) -> Pipeline[AudioSignal, LsbResult]
             yield np.packbits(bits.flatten()).tobytes()
 
         results = list(generate())
-        return LsbResult(LsbPayload(plane=plane, outfile=outfile, results=results))
+        return LsbPayload(plane=plane, outfile=outfile, results=results)
 
     return Pipeline(analyze)

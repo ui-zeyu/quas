@@ -7,23 +7,17 @@ from rich.text import Text
 from scipy.signal import spectrogram
 
 from quas.audio.base import Analyzer, AudioSignal
-from quas.core.protocols import CommandResult
 
 
 @dataclass
 class DTMFPayload:
     digits: str
 
-
-@dataclass
-class DTMFResult(CommandResult[DTMFPayload]):
-    data: DTMFPayload
-
     def __rich__(self) -> Text:
-        return Text(f"DTMF digits: {self.data.digits}")
+        return Text(f"DTMF digits: {self.digits}")
 
 
-class DTMFRecognizer(Analyzer[AudioSignal, DTMFResult]):
+class DTMFRecognizer(Analyzer[AudioSignal, DTMFPayload]):
     LOW_FREQS = np.array((697, 770, 852, 941))
     HIGH_FREQS = np.array((1209, 1336, 1477, 1633))
     DTMF_MAP = {
@@ -50,7 +44,7 @@ class DTMFRecognizer(Analyzer[AudioSignal, DTMFResult]):
         self.window_ms = window_ms
 
     @override
-    def __call__(self, data: AudioSignal) -> DTMFResult:
+    def __call__(self, data: AudioSignal) -> DTMFPayload:
         y, sr = data.y, data.sr
         nperseg = int(sr * (self.window_ms / 1000))
         f, _, sxx = spectrogram(y, sr, nperseg=nperseg, noverlap=0)
@@ -74,7 +68,7 @@ class DTMFRecognizer(Analyzer[AudioSignal, DTMFResult]):
             for i in range(sxx.shape[1])
         ]
         digits = "".join(k for k, _ in groupby(seq) if k is not None)
-        return DTMFResult(DTMFPayload(digits=digits))
+        return DTMFPayload(digits=digits)
 
     @classmethod
     def perform(
@@ -83,7 +77,7 @@ class DTMFRecognizer(Analyzer[AudioSignal, DTMFResult]):
         tolerance: int,
         window_ms: int,
         channel: int | None,
-    ) -> DTMFResult:
+    ) -> DTMFPayload:
         from quas.audio.base import select_channel
 
         pipeline = select_channel(channel) | cls(

@@ -1,29 +1,36 @@
+import subprocess
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
-import click
+import typer
 
-from quas.commands.context import ContextObject
+from quas.core import UseCase
+from quas.util.rev import rev
 
-
-@click.group(help="Utility tools")
-def app() -> None: ...
-
-
-@click.command(help="Reverse bytes of a file")
-@click.pass_obj
-@click.argument("infile", type=Path)
-@click.argument(
-    "outfile",
-    type=Path,
-    default="-",
-)
-def rev(ctx: ContextObject, infile: Path, outfile: Path) -> None:
-    from quas.util.rev import perform_rev
-
-    console = ctx["console"]
-    result = perform_rev(infile, outfile)
-    result.save_or_show()
-    console.print(result)
+app = typer.Typer(name="util", help="Utility commands", no_args_is_help=True)
 
 
-app.add_command(rev)
+@app.callback()
+def callback() -> None: ...
+
+
+@dataclass(kw_only=True)
+class RevUseCase(UseCase[bytes]):
+    """Reverse bytes of a file."""
+
+    GROUP = app
+    COMMAND = rev.__name__
+
+    infile: Annotated[Path, typer.Argument(help="Input file")]
+    outfile: Annotated[Path, typer.Option(help="Output file")] = Path("-")
+
+    def execute(self) -> bytes:
+        return rev(self.infile)
+
+    def effect(self, result: bytes) -> None:
+        if self.outfile == Path("-"):
+            subprocess.run(["hexyl"], input=result)
+        else:
+            self.outfile.write_bytes(result)
+            self.ctx.obj["console"].print(f"Successfully wrote to {self.outfile}")

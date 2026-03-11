@@ -1,14 +1,12 @@
-from binascii import crc32
 from dataclasses import dataclass
-from io import BytesIO
 from struct import pack, unpack
+from zlib import crc32
 
 from PIL import Image
-from rich.text import Text
+from rich.console import Group
+from rich.panel import Panel
 
-from quas.core.protocols import CommandResult
-
-PNG_SIGNATURE = b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 IHDR_CHUNK_TYPE = b"IHDR"
 MAX_DIMENSION = 5000
 
@@ -19,44 +17,60 @@ class IHDRPayload:
     height: int
     image: Image.Image
 
-
-@dataclass
-class IHDRResult(CommandResult[IHDRPayload]):
-    data: IHDRPayload
-
-    def __rich__(self) -> Text:
-        return Text.from_markup(
-            f"\n[green]Found: {self.data.width} x {self.data.height}[/green]"
+    def __rich__(self) -> Group:
+        return Group(
+            Panel(
+                f"[bold green]Recovered dimensions:[/bold green]\n"
+                f"[cyan]Width:[/cyan] {self.width}\n"
+                f"[cyan]Height:[/cyan] {self.height}",
+                title="IHDR Recovery Result",
+            )
         )
 
 
-def recover_ihdr_dimensions(
-    data: bytes,
-    max_width: int,
-    max_height: int,
-) -> IHDRResult | None:
-    if data[:8] != PNG_SIGNATURE:
+def crack(data: bytes, max_width: int, max_height: int) -> IHDRPayload | None:
+    if not data.startswith(PNG_SIGNATURE):
         raise ValueError("Invalid PNG signature")
 
-    chunk_length, chunk_type = unpack(">I4s", data[8:16])
-    if chunk_length != 0x0D or chunk_type != IHDR_CHUNK_TYPE:
-        raise ValueError("First chunk is not IHDR")
+    # Locate IHDR chunk
+    ihdr_start = data.find(IHDR_CHUNK_TYPE)
+    if ihdr_start == -1:
+        raise ValueError("IHDR chunk not found")
 
-    _, _, ihdr_suffix, target = unpack(">II5sI", data[16:33])
+    # The IHDR chunk layout:
+    # Length (4 bytes), Type (4 bytes), Data (13 bytes), CRC (4 bytes)
+    # The CRC is calculated over Type + Data.
 
-    for x in range(1, max_width + 1):
-        for y in range(1, max_height + 1):
-            ihdr_data = IHDR_CHUNK_TYPE + pack(">II5s", x, y, ihdr_suffix)
-            crc = crc32(ihdr_data) & 0xFFFFFFFF
-            if crc == target:
-                chunk = b"\x00\x00\x00\x0d" + ihdr_data + pack(">I", crc)
-                image_data = PNG_SIGNATURE + chunk + data[33:]
+    # Original data components
+    # data[ihdr_start-4 : ihdr_start] is the length (should be 13)
+    # data[ihdr_start : ihdr_start+4] is "IHDR"
+    # data[ihdr_start+4 : ihdr_start+4+13] is the 13-byte IHDR data
+    # data[ihdr_start+17 : ihdr_start+21] is the original CRC
 
-                try:
-                    from PIL import UnidentifiedImageError
+    ihdr_data = data[ihdr_start + 4 : ihdr_start + 17]
+    original_crc = unpack(">I", data[ihdr_start + 17 : ihdr_start + 21])[0]
 
-                    img = Image.open(BytesIO(image_data))
-                    return IHDRResult(IHDRPayload(width=x, height=y, image=img))
-                except UnidentifiedImageError:
-                    continue
+    # IHDR Data: Width (4), Height (4), Bit depth (1), Color type (1),
+    # Compression (1), Filter (1), Interlace (1)
+    # We want to bruteforce Width and Height.
+
+    fixed_data = ihdr_data[8:]  # The 5 bytes after width and height
+
+    for w in range(1, max_width + 1):
+        for h in range(1, max_height + 1):
+            test_data = IHDR_CHUNK_TYPE + pack(">II", w, h) + fixed_data
+            if crc32(test_data) == original_crc:
+                # Found it! Reconstruct the image for the user.
+                # Note: This is just for demonstration, in a real scenario
+                # we might want to return the modified data.
+                import io
+
+                new_data = (
+                    data[: ihdr_start + 4]
+                    + pack(">II", w, h)
+                    + fixed_data
+                    + data[ihdr_start + 17 :]
+                )
+                image = Image.open(io.BytesIO(new_data))
+                return IHDRPayload(w, h, image)
     return None

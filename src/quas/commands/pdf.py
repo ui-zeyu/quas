@@ -1,29 +1,39 @@
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
-import click
+import typer
 
-from quas.commands.context import ContextObject
-from quas.pdf.stream import ScanStrategy
+from quas.core import UseCase
+from quas.pdf.stream import ScanStrategy, StreamPayload
 
-
-@click.group(help="PDF analysis tools")
-def app() -> None: ...
-
-
-@click.command(help="Extract and display all PDF streams")
-@click.pass_obj
-@click.argument("infile", type=Path)
-@click.option(
-    "-s",
-    "--strategy",
-    type=click.Choice(ScanStrategy, case_sensitive=False),
-    default=ScanStrategy.NORMAL,
-    help="Scanning strategy: normal or regex",
-)
-def stream(ctx: ContextObject, infile: Path, strategy: ScanStrategy) -> None:
-    console = ctx["console"]
-    result = ScanStrategy.perform_scan(infile, strategy, console)
-    console.print(result)
+app = typer.Typer(name="pdf", help="PDF analysis tools", no_args_is_help=True)
 
 
-app.add_command(stream)
+@app.callback()
+def callback() -> None: ...
+
+
+@dataclass(kw_only=True)
+class StreamUseCase(UseCase[StreamPayload]):
+    """Extract and display all PDF streams."""
+
+    GROUP = app
+    COMMAND = "stream"
+
+    infile: Annotated[Path, typer.Argument(help="Input PDF file")]
+    strategy: Annotated[
+        ScanStrategy,
+        typer.Option(
+            "--strategy",
+            "-s",
+            help="Scanning strategy: normal or regex",
+        ),
+    ] = ScanStrategy.NORMAL
+
+    def execute(self) -> StreamPayload:
+        console = self.ctx.obj["console"]
+        return ScanStrategy.perform_scan(self.infile, self.strategy, console)
+
+    def effect(self, result: StreamPayload) -> None:
+        self.ctx.obj["console"].print(result)

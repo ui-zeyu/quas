@@ -1,30 +1,26 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import reduce
 from itertools import batched
 from math import lcm
 
-from rich.console import Group
 from rich.text import Text
 
-from quas.core.protocols import CommandResult
+TABLE_BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+TABLE_BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 
 @dataclass
 class BaseXPayload:
     bits: bytearray
-    steg_data: str
+    steg: str
+
+    def __rich__(self) -> Text:
+        bits = "".join(str(x) for x in self.bits)
+        return Text.assemble(bits, self.steg)
 
 
-@dataclass
-class BaseXResult(CommandResult[BaseXPayload]):
-    data: BaseXPayload
-
-    def __rich__(self) -> Group:
-        bit_str = "".join(str(x) for x in self.data.bits)
-        return Group(Text(bit_str), Text(self.data.steg_data))
-
-
-def perform_basex_decode(lines: list[str], table: str) -> BaseXResult:
+def basex_decode(lines: Sequence[str], table: str) -> BaseXPayload:
     rank = len(table).bit_length() - 1
     num_pads = lcm(rank, 8) // rank
 
@@ -39,9 +35,9 @@ def perform_basex_decode(lines: list[str], table: str) -> BaseXResult:
         for i in reversed(range(num_bits)):
             bits.append((x >> i) & 1)
 
-    steg_data = bytes(
+    steg = bytes(
         reduce(lambda s, x: s << 1 | x, byte, 0)
         for byte in batched(bits, 8, strict=False)
     ).decode(errors="replace")
 
-    return BaseXResult(BaseXPayload(bits=bits, steg_data=steg_data))
+    return BaseXPayload(bits=bits, steg=steg)

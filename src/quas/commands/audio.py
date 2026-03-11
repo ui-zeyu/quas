@@ -1,144 +1,152 @@
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
-import click
+import matplotlib.pyplot as plt
+import typer
 
-from quas.commands.context import ContextObject
+from quas.audio.base import AudioSignal, select_channel
+from quas.audio.dtmf import DTMFPayload, DTMFRecognizer
+from quas.audio.frequency import FreqPayload, frequency_analyzer
+from quas.audio.lsb import LsbPayload, lsb_extractor
+from quas.audio.morse import MorseDecoder, MorsePayload
+from quas.audio.visualize import AudioVisualizer
+from quas.core import UseCase
 
-
-@click.group(help="Audio waveform analysis tools")
-def app() -> None: ...
-
-
-@click.command()
-@click.pass_obj
-@click.option("-t", "--tolerance", default=20, help="Frequency tolerance in Hz")
-@click.option("-w", "--window", default=40, help="Window size in ms")
-@click.option("-c", "--channel", type=int, help="Channel to use")
-@click.option("--dtype", default="float64", help="Audio data type")
-@click.argument("infile", type=Path)
-def dtmf(
-    ctx: ContextObject,
-    infile: Path,
-    tolerance: int,
-    window: int,
-    channel: int | None,
-    dtype: str,
-) -> None:
-    from quas.audio.base import AudioSignal
-    from quas.audio.dtmf import DTMFRecognizer
-
-    console = ctx["console"]
-    sig = AudioSignal.read(infile, dtype=dtype)
-    result = DTMFRecognizer.perform(
-        sig, tolerance=tolerance, window_ms=window, channel=channel
-    )
-    console.print(result)
+app = typer.Typer(name="audio", help="Audio analysis tools", no_args_is_help=True)
 
 
-@click.command()
-@click.pass_obj
-@click.option("-t", "--top", default=10, help="Top N frequencies")
-@click.option("-c", "--channel", type=int, help="Channel to use")
-@click.option("--dtype", default="float64", help="Audio data type")
-@click.argument("infile", type=Path)
-def frequency(
-    ctx: ContextObject, infile: Path, top: int, channel: int | None, dtype: str
-) -> None:
-    from quas.audio.base import AudioSignal, select_channel
-    from quas.audio.frequency import frequency_analyzer
-
-    console = ctx["console"]
-    sig = AudioSignal.read(infile, dtype=dtype)
-
-    pipeline = select_channel(channel) | frequency_analyzer(top=top)
-    result = pipeline(sig)
-
-    console.print(result)
+@app.callback()
+def callback() -> None: ...
 
 
-@click.command()
-@click.pass_obj
-@click.option("-p", "--plane", default=1, help="Bit plane to extract")
-@click.option("-c", "--channel", type=int, help="Channel to use")
-@click.option("--dtype", default="int16", help="Audio data type")
-@click.argument("infile", type=Path)
-@click.argument("outfile", type=Path)
-def lsb(
-    ctx: ContextObject,
-    infile: Path,
-    outfile: Path,
-    plane: int,
-    channel: int | None,
-    dtype: str,
-) -> None:
-    from quas.audio.base import AudioSignal, select_channel
-    from quas.audio.lsb import lsb_extractor
-
-    console = ctx["console"]
-    sig = AudioSignal.read(infile, dtype=dtype)
-
-    pipeline = select_channel(channel) | lsb_extractor(plane=plane, outfile=outfile)
-    result = pipeline(sig)
-    result.save()
-
-    console.print(result)
+@dataclass(kw_only=True)
+class AudioUseCase[O](UseCase[O]):
+    infile: Annotated[Path, typer.Argument(help="Input file")]
+    channel: Annotated[
+        int | None, typer.Option("--channel", "-c", help="Channel to use")
+    ] = None
+    dtype: Annotated[str, typer.Option("--dtype", help="Audio data type")] = "float64"
 
 
-@click.command()
-@click.pass_obj
-@click.option("-t", "--tolerance", default=20, help="Frequency tolerance in Hz")
-@click.option("-w", "--window", default=10, help="Window size in ms")
-@click.option("-c", "--channel", type=int, help="Channel to use")
-@click.option("--dtype", default="float64", help="Audio data type")
-@click.argument("infile", type=Path)
-def morse(
-    ctx: ContextObject,
-    infile: Path,
-    tolerance: int,
-    window: int,
-    channel: int | None,
-    dtype: str,
-) -> None:
-    from quas.audio.base import AudioSignal
-    from quas.audio.morse import MorseDecoder
+@dataclass(kw_only=True)
+class DtmfUseCase(AudioUseCase[DTMFPayload]):
+    """Audio DTMF recognition."""
 
-    console = ctx["console"]
-    sig = AudioSignal.read(infile, dtype=dtype)
-    result = MorseDecoder.perform(
-        sig, tolerance=tolerance, window_ms=window, channel=channel
-    )
-    console.print(result)
+    GROUP = app
+    COMMAND = "dtmf"
 
+    tolerance: Annotated[
+        int,
+        typer.Option("--tolerance", "-t", help="Frequency tolerance in Hz"),
+    ] = 20
+    window: Annotated[
+        int,
+        typer.Option("--window", "-w", help="Window size in ms"),
+    ] = 40
 
-@click.command()
-@click.pass_obj
-@click.option("-t", "--title", default="Audio Analysis", help="Plot title")
-@click.option("-w", "--window", default=20, help="Window size in ms")
-@click.option("-c", "--channel", type=int, help="Channel to use")
-@click.option("--dtype", default="float64", help="Audio data type")
-@click.argument("infile", type=Path)
-def visualize(
-    ctx: ContextObject,
-    infile: Path,
-    title: str,
-    window: int,
-    channel: int | None,
-    dtype: str,
-) -> None:
-    import matplotlib.pyplot as plt
-
-    from quas.audio.base import AudioSignal, select_channel
-    from quas.audio.visualize import AudioVisualizer
-
-    sig = AudioSignal.read(infile, dtype=dtype)
-
-    pipeline = select_channel(channel) | AudioVisualizer(title=title, window_ms=window)
-    pipeline(sig)
-    plt.show()
+    def execute(self) -> DTMFPayload:
+        sig = AudioSignal.read(self.infile, dtype=self.dtype)
+        return DTMFRecognizer.perform(
+            sig,
+            tolerance=self.tolerance,
+            window_ms=self.window,
+            channel=self.channel,
+        )
 
 
-app.add_command(dtmf)
-app.add_command(frequency)
-app.add_command(lsb)
-app.add_command(morse)
-app.add_command(visualize)
+@dataclass(kw_only=True)
+class FrequencyUseCase(AudioUseCase[FreqPayload]):
+    """Audio frequency analysis."""
+
+    GROUP = app
+    COMMAND = "frequency"
+
+    top: Annotated[int, typer.Option("--top", "-t", help="Top N frequencies")] = 10
+
+    def execute(self) -> FreqPayload:
+        sig = AudioSignal.read(self.infile, dtype=self.dtype)
+
+        pipeline = select_channel(self.channel) | frequency_analyzer(top=self.top)
+        return pipeline(sig)
+
+
+@dataclass(kw_only=True)
+class LsbUseCase(AudioUseCase[LsbPayload]):
+    """Audio LSB extraction."""
+
+    GROUP = app
+    COMMAND = "lsb"
+
+    outfile: Annotated[Path, typer.Argument(help="Output file")]
+    plane: Annotated[
+        int,
+        typer.Option("--plane", "-p", help="Bit plane to extract"),
+    ] = 1
+    dtype: Annotated[str, typer.Option("--dtype", help="Audio data type")] = "int16"
+
+    def execute(self) -> LsbPayload:
+        sig = AudioSignal.read(self.infile, dtype=self.dtype)
+
+        pipeline = select_channel(self.channel) | lsb_extractor(
+            plane=self.plane, outfile=self.outfile
+        )
+        return pipeline(sig)
+
+    def effect(self, result: LsbPayload) -> None:
+        result.save()
+        self.ctx.obj["console"].print(result)
+
+
+@dataclass(kw_only=True)
+class MorseUseCase(AudioUseCase[MorsePayload]):
+    """Audio Morse code recognition."""
+
+    GROUP = app
+    COMMAND = "morse"
+
+    tolerance: Annotated[
+        int,
+        typer.Option("--tolerance", "-t", help="Frequency tolerance in Hz"),
+    ] = 20
+    window: Annotated[
+        int,
+        typer.Option("--window", "-w", help="Window size in ms"),
+    ] = 10
+
+    def execute(self) -> MorsePayload:
+        sig = AudioSignal.read(self.infile, dtype=self.dtype)
+        return MorseDecoder.perform(
+            sig,
+            tolerance=self.tolerance,
+            window_ms=self.window,
+            channel=self.channel,
+        )
+
+
+@dataclass(kw_only=True)
+class VisualizeUseCase(AudioUseCase[None]):
+    """Audio visualization."""
+
+    GROUP = app
+    COMMAND = "visualize"
+
+    title: Annotated[
+        str,
+        typer.Option("--title", "-t", help="Plot title"),
+    ] = "Audio Analysis"
+    window: Annotated[
+        int,
+        typer.Option("--window", "-w", help="Window size in ms"),
+    ] = 20
+
+    def execute(self) -> None:
+        sig = AudioSignal.read(self.infile, dtype=self.dtype)
+
+        pipeline = select_channel(self.channel) | AudioVisualizer(
+            title=self.title, window_ms=self.window
+        )
+        pipeline(sig)
+
+    def effect(self, result: None) -> None:
+        plt.show()

@@ -1,148 +1,73 @@
 from collections.abc import Sequence
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-from hashlib import sha256
+from multiprocessing import Pool
 from pathlib import Path
-from typing import NamedTuple
 
-import matplotlib.pyplot as plt
-import numpy as np
-import toolz
-from Cryptodome.Cipher import AES
-from Cryptodome.Util.Padding import unpad
 from PIL import Image
-from rich.console import Console
-from rich.text import Text
+from rich.console import Console, Group
+from rich.panel import Panel
 
-from quas.core.protocols import CommandResult
-
-
-class DecryptResult(NamedTuple):
-    password: str
-    plaintext: str
+from quas.behinder.aes import Mode, decrypt
 
 
 @dataclass
 class LsbAesPayload:
-    password: str | None
-    plaintext: str | None
+    path: Path
+    password: str
+    key: bytes
+    data: bytes
 
-
-@dataclass
-class LsbAesResult(CommandResult[LsbAesPayload]):
-    data: LsbAesPayload
-
-    def __rich__(self) -> Text:
-        if self.data.password is not None:
-            return Text.from_markup(
-                f"[bold]Password found:[/bold] {self.data.password}\n[bold]Decrypted text:[/bold] {self.data.plaintext}"
+    def __rich__(self) -> Group:
+        return Group(
+            Panel(
+                f"[bold green]Password found![/bold green]\n"
+                f"[cyan]Password:[/cyan] {self.password}\n"
+                f"[cyan]Key:[/cyan] {self.key.hex()}\n"
+                f"[cyan]Payload:[/cyan] {self.data.decode(errors='replace')}",
+                title=f"LSB AES from {self.path.name}",
             )
-        else:
-            return Text.from_markup("[bold red]No valid password found[/bold red]")
+        )
 
 
-PADDING_SIZE: int = 32
-
-
-def entropy(data: np.ndarray[tuple[int], np.dtype[np.uint8]]) -> float:
-    x, counts = np.unique(data, return_counts=True)
-    probs = counts / len(data)
-    return -np.sum(probs * np.log2(probs))
-
-
-def extract_lsb_bits(image: Path) -> np.ndarray[tuple[int], np.dtype[np.uint8]]:
-    img = Image.open(image).convert("RGBA")
-    rgb = np.array(img, dtype=np.uint8)[:, :, :3]
-    return (rgb & 1).ravel()
-
-
-def unpack_iv_ct(
-    console: Console,
-    bytes: np.ndarray[tuple[int], np.dtype[np.uint8]],
-) -> tuple[bytes, bytes]:
-    len_ct_bytes, bytes = bytes[:4], bytes[4:]
-    len_ct = int.from_bytes(len_ct_bytes.tobytes(), "little")
-    console.print(f"[bold]Ciphertext length:[/bold] {len_ct}")
-    assert len_ct % AES.block_size == 0
-
-    iv, ct = bytes[: AES.block_size], bytes[AES.block_size : len_ct]
-    return iv.tobytes(), ct.tobytes()
-
-
-def analyse(bits: np.ndarray[tuple[int], np.dtype[np.uint8]]) -> None:
-    chunks = bits.reshape(-1, 128, 3)
-    mean = np.mean(chunks, axis=1)
-
-    r_channel = mean[:, 0]
-    g_channel = mean[:, 1]
-    b_channel = mean[:, 2]
-    x = range(len(mean))
-
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
-    axes[0].plot(x, r_channel, "r-", linewidth=2)
-    axes[0].set_ylabel("Mean Value")
-    axes[0].set_title("R Channel")
-    axes[0].grid(True, alpha=0.3)
-
-    axes[1].plot(x, g_channel, "g-", linewidth=2)
-    axes[1].set_ylabel("Mean Value")
-    axes[1].set_title("G Channel")
-    axes[1].grid(True, alpha=0.3)
-
-    axes[2].plot(x, b_channel, "b-", linewidth=2)
-    axes[2].set_xlabel("Block Index")
-    axes[2].set_ylabel("Mean Value")
-    axes[2].set_title("B Channel")
-    axes[2].grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.show()
-
-
-def decrypt_batch(
-    passwords: Sequence[bytes],
-    iv: bytes,
-    ct: bytes,
-) -> DecryptResult | None:
-    for password in passwords:
-        key = sha256(password).digest()
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        try:
-            pt = unpad(cipher.decrypt(ct), block_size=PADDING_SIZE)
-            return DecryptResult(password.decode(), pt.decode())
-        except ValueError:
-            continue
-    return None
-
-
-def crack(
-    iv: bytes,
-    ct: bytes,
-    wordlist: Path,
-    num_worker: int,
-) -> DecryptResult | None:
-    passwords = wordlist.read_bytes().splitlines()
-    chunks = toolz.partition_all(num_worker, passwords)
-
-    with ProcessPoolExecutor(num_worker) as executor:
-        futures = [executor.submit(decrypt_batch, chunk, iv, ct) for chunk in chunks]
-        for future in as_completed(futures):
-            if result := future.result():
-                return result
+def _worker(args: tuple[bytes, Sequence[bytes]]) -> tuple[str, bytes] | None:
+    chunk, passwords = args
+    if result := decrypt(chunk, passwords, Mode.CBC):
+        return result.password.decode(), result.key
     return None
 
 
 def perform_lsbaes(
-    image_path: Path, wordlist: Path, workers: int, console: Console
-) -> LsbAesResult:
-    bits = extract_lsb_bits(image_path)
-    bytes_data = np.packbits(bits)
-    iv, ct = unpack_iv_ct(console, bytes_data)
-    analyse(bits)
+    image_path: Path,
+    wordlist_path: Path,
+    workers: int,
+    console: Console,
+) -> LsbAesPayload | None:
+    image = Image.open(image_path)
+    width, height = image.size
+    pixels = list(image.getdata())  # type: ignore
 
-    if result := crack(iv, ct, wordlist, workers):
-        return LsbAesResult(
-            LsbAesPayload(password=result.password, plaintext=result.plaintext)
-        )
-    else:
-        return LsbAesResult(LsbAesPayload(password=None, plaintext=None))
+    # Extract LSB bits
+    bits = ""
+    for pixel in pixels:
+        for channel in pixel[:3]:
+            bits += str(channel & 1)
+
+    # Convert bits to bytes
+    data = bytes(int(bits[i : i + 8], 2) for i in range(0, len(bits), 8))
+
+    # Load wordlist
+    passwords = wordlist_path.read_bytes().splitlines()
+    chunk_size = (len(passwords) + workers - 1) // workers
+    chunks = [
+        passwords[i : i + chunk_size] for i in range(0, len(passwords), chunk_size)
+    ]
+
+    with Pool(workers) as pool:
+        results = pool.map(_worker, [(data, chunk) for chunk in chunks])
+
+    for result in results:
+        if result:
+            password, key = result
+            return LsbAesPayload(image_path, password, key, data)
+
+    return None

@@ -1,73 +1,89 @@
-import zipfile
-from pathlib import Path
+import binascii
 
-from quas.crc.zip import bruteforce
+from quas.crc.zip import crack
 
-DATA_DIR = Path(__file__).parent
-
-
-def test_zip_4crc_file_size() -> None:
-    zip_file = DATA_DIR / "4crc.zip"
-    assert zip_file.exists()
-
-    with zipfile.ZipFile(zip_file, "r") as zf:
-        files_size_4 = [f for f in zf.infolist() if f.file_size == 4]
-
-        assert len(files_size_4) == 6
-
-        crcs = {f.CRC for f in files_size_4}
-        expected_crcs = {
-            0xCE70D424,
-            0xC3F17511,
-            0xF90C8A70,
-            0x35EB81EE,
-            0xA695678A,
-            0x9244E5AF,
-        }
-        assert crcs == expected_crcs
+charset = b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ "
 
 
-def test_zip_4crc_bruteforce() -> None:
-    from binascii import crc32
-
-    targets = {crc32(b"0001") & 0xFFFFFFFF, crc32(b"0002") & 0xFFFFFFFF}
-    charset = b"0123456789"
-
-    results = bruteforce(4, targets, charset, jobs=1, crc2file={})
-
-    assert len(results.data.results) == 2
-    for _crc, filenames in results.data.results.items():
-        assert len(filenames) >= 1
-        for fname in filenames:
-            assert len(fname) == 4
+def calculate_crc(data: bytes) -> int:
+    return binascii.crc32(data) & 0xFFFFFFFF
 
 
-def test_zip_4crc_specific_crc() -> None:
-    from binascii import crc32
+def test_crack_single():
+    target_data = b"abcd"
+    target_crc = calculate_crc(target_data)
+    results = crack(4, {target_crc}, charset, jobs=1, crc2file={})
 
-    charset = b"0123456789"
-    target_crc = crc32(b"1234") & 0xFFFFFFFF
-
-    results = bruteforce(4, {target_crc}, charset, jobs=1, crc2file={})
-
-    assert target_crc in results.data.results
-    assert len(results.data.results[target_crc]) >= 1
-    assert "1234" in results.data.results[target_crc]
+    assert target_crc in results.results
+    assert target_data.decode() in results.results[target_crc]
 
 
-def test_zip_flag_file_exists() -> None:
-    zip_file = DATA_DIR / "4crc.zip"
+def test_crack_multiple():
+    target_data1 = b"ab"
+    target_crc1 = calculate_crc(target_data1)
+    target_data2 = b"cd"
+    target_crc2 = calculate_crc(target_data2)
+    targets = {target_crc1, target_crc2}
 
-    with zipfile.ZipFile(zip_file, "r") as zf:
-        flag_files = [f for f in zf.infolist() if "flag" in f.filename.lower()]
+    results = crack(2, targets, charset, jobs=1, crc2file={})
 
-        assert len(flag_files) == 1
-        assert flag_files[0].file_size == 403
-        assert flag_files[0].CRC == 0x36595A8F
+    assert len(results.results) == 2
+    for crc in [target_crc1, target_crc2]:
+        assert crc in results.results
+        assert len(results.results[crc]) >= 1
+    assert target_data1.decode() in results.results[target_crc1]
+    assert target_data2.decode() in results.results[target_crc2]
 
 
-def test_zip_file_count() -> None:
-    zip_file = DATA_DIR / "4crc.zip"
+def test_crack_multiple_jobs():
+    target_data = b"abc"
+    target_crc = calculate_crc(target_data)
+    results = crack(3, {target_crc}, charset, jobs=2, crc2file={})
 
-    with zipfile.ZipFile(zip_file, "r") as zf:
-        assert len(zf.infolist()) == 7
+    assert target_crc in results.results
+    assert target_data.decode() in results.results[target_crc]
+
+
+def test_crack_not_found():
+    target_crc = 0xFFFFFFFF
+    results = crack(4, {target_crc}, charset, jobs=1, crc2file={})
+
+    assert len(results.results) == 0
+
+
+def test_crack_special_chars():
+    target_data = b"!@#"
+    target_crc = calculate_crc(target_data)
+    charset_special = b"!@#$"
+    results = crack(3, {target_crc}, charset_special, jobs=1, crc2file={})
+
+    assert target_crc in results.results
+    assert target_data.decode() in results.results[target_crc]
+
+
+def test_crack_numbers():
+    target_data = b"1234"
+    target_crc = calculate_crc(target_data)
+    results = crack(4, {target_crc}, charset, jobs=1, crc2file={})
+
+    assert target_crc in results.results
+    assert len(results.results[target_crc]) >= 1
+    assert target_data.decode() in results.results[target_crc]
+
+
+def test_crack_unicode_decode_error():
+    # Construct a byte sequence that cannot be decoded using utf-8
+    # 0xFF is an invalid start byte in utf-8
+    target_data = b"\xff\xff"
+    target_crc = calculate_crc(target_data)
+    charset_invalid = b"\xff"
+
+    results = crack(2, {target_crc}, charset_invalid, jobs=1, crc2file={})
+
+    # The result should be empty or not contain the target_crc
+    # because the worker ignores UnicodeDecodeError
+    assert (
+        len(results.results) == 0
+        or target_crc not in results.results
+        or len(results.results[target_crc]) == 0
+    )

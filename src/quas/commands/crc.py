@@ -1,119 +1,106 @@
+import os
+import zipfile
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
-import click
+import toolz
+import typer
 
-from quas.commands.context import ContextObject
+from quas.core import UseCase
+from quas.crc.ihdr import IHDRPayload
+from quas.crc.ihdr import crack as ihdr_crack
+from quas.crc.zip import ZipPayload
+from quas.crc.zip import crack as zip_crack
 
-
-@click.group(help="CRC and checksum tools")
-def app() -> None: ...
-
-
-@click.command(help="Recover PNG IHDR dimensions by bruteforcing CRC32")
-@click.pass_obj
-@click.argument("infile", type=Path)
-@click.argument("outfile", type=Path, required=False)
-@click.option(
-    "--max-width",
-    type=int,
-    default=5000,
-    help="Maximum width to search",
-)
-@click.option(
-    "--max-height",
-    type=int,
-    default=5000,
-    help="Maximum height to search",
-)
-def ihdr(
-    ctx: ContextObject,
-    infile: Path,
-    max_width: int,
-    max_height: int,
-    outfile: Path | None,
-) -> None:
-    from struct import unpack
-
-    from quas.crc.ihdr import recover_ihdr_dimensions
-
-    console = ctx["console"]
-
-    data = infile.read_bytes()
-
-    try:
-        orig_w, orig_h = unpack(">II", data[16:24])
-        console.print(f"[bold]Original dimensions:[/bold] {orig_w} x {orig_h}")
-        console.print(f"[bold]Bruteforce range:[/bold] 1-{max_width} x 1-{max_height}")
-    except Exception:
-        pass
-
-    with console.status("[bold green]Bruteforcing...[/bold green]"):
-        try:
-            result = recover_ihdr_dimensions(data, max_width, max_height)
-        except ValueError as e:
-            console.print(f"[red]Error:[/red] {e}")
-            return
-
-    if result:
-        console.print(result)
-        if outfile:
-            result.data.image.save(outfile)
-        else:
-            result.data.image.show()
-    else:
-        console.print("\n[red]Failed to find matching dimensions.[/red]")
+app = typer.Typer(name="crc", help="CRC32 bruteforce tools", no_args_is_help=True)
 
 
-@click.command(help="Bruteforce ZIP filenames by CRC32")
-@click.pass_obj
-@click.argument("infile", type=Path)
-@click.option("-s", "--size", type=int, required=True, help="Target file size to match")
-@click.option(
-    "-c",
-    "--charset",
-    type=str,
-    default="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ ",
-    help="Character set for bruteforce",
-)
-@click.option(
-    "-j",
-    "--jobs",
-    type=int,
-    default=None,
-    help="Number of jobs to run",
-)
-def zip_cmd(
-    ctx: ContextObject, infile: Path, size: int, charset: str, jobs: int | None
-) -> None:
-    import os
-    import zipfile
+@app.callback()
+def callback() -> None: ...
 
-    import toolz
 
-    from quas.crc.zip import bruteforce
+@dataclass(kw_only=True)
+class IHDRUseCase(UseCase[IHDRPayload]):
+    """Recover PNG IHDR dimensions by bruteforcing CRC32."""
 
-    console = ctx["console"]
-    if jobs is None:
-        jobs = os.cpu_count() or 1
+    GROUP = app
+    COMMAND = "ihdr"
 
-    charset_bytes: bytes = f" {charset} ".encode()
-    alphabet = bytearray()
-    for p, x, n in toolz.sliding_window(3, charset_bytes):
-        if x == ord("-") and p < n:
-            alphabet.extend(range(p + 1, n))
-        else:
-            alphabet.append(x)
-    console.print(f"Charset: [bold red]{alphabet.decode()}[/bold red]\n")
+    infile: Annotated[Path, typer.Argument(help="Input PNG file")]
+    outfile: Annotated[
+        Path | None, typer.Argument(help="Output PNG file (optional)")
+    ] = None
+    max_width: Annotated[
+        int,
+        typer.Option("--max-width", help="Maximum width to search"),
+    ] = 5000
+    max_height: Annotated[
+        int,
+        typer.Option("--max-height", help="Maximum height to search"),
+    ] = 5000
 
-    if size > 4:
-        cmd = f"hashcat -O -a 3 -m 11500 --keep-guessing <CRC32>:{'0' * 8 + ' ' + '?a' * size}"
-        console.print(f"For large size try Hashcat:\n [bold cyan]{cmd}[/bold cyan]\n")
+    def execute(self) -> IHDRPayload:
+        data = self.infile.read_bytes()
+        if results := ihdr_crack(data, self.max_width, self.max_height):
+            return results
+        raise ValueError("Failed to find matching dimensions")
 
-    with zipfile.ZipFile(infile, "r") as zf:
-        crc2file = {f.CRC: f.filename for f in zf.infolist() if f.file_size == size}
-        result = bruteforce(size, set(crc2file.keys()), bytes(alphabet), jobs, crc2file)
+    def effect(self, result: IHDRPayload) -> None:
+        console = self.ctx.obj["console"]
         console.print(result)
 
+        if self.outfile:
+            result.image.save(self.outfile)
+        else:
+            result.image.show()
 
-app.add_command(ihdr)
-app.add_command(zip_cmd, "zip")
+
+@dataclass(kw_only=True)
+class ZipUseCase(UseCase[ZipPayload]):
+    """Bruteforce ZIP filenames by CRC32."""
+
+    GROUP = app
+    COMMAND = "zip"
+
+    infile: Annotated[Path, typer.Argument(help="Input ZIP file")]
+    size: Annotated[int, typer.Option("--size", "-s", help="Target file size to match")]
+    charset: Annotated[
+        str,
+        typer.Option(
+            "--charset",
+            "-c",
+            help="Character set for bruteforce",
+        ),
+    ] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ "
+    jobs: Annotated[
+        int | None,
+        typer.Option(
+            "--jobs",
+            "-j",
+            help="Number of jobs to run",
+        ),
+    ] = None
+
+    def execute(self) -> ZipPayload:
+        jobs = self.jobs or os.cpu_count() or 1
+        charset = self.charset
+        size = self.size
+        infile = self.infile
+
+        charset_bytes: bytes = f" {charset} ".encode()
+        alphabet = bytearray()
+        for p, x, n in toolz.sliding_window(3, charset_bytes):
+            if x == ord("-") and p < n:
+                alphabet.extend(range(p + 1, n))
+            else:
+                alphabet.append(x)
+
+        with zipfile.ZipFile(infile, "r") as zf:
+            crc2file = {f.CRC: f.filename for f in zf.infolist() if f.file_size == size}
+            return zip_crack(
+                size, set(crc2file.keys()), bytes(alphabet), jobs, crc2file
+            )
+
+    def effect(self, result: ZipPayload) -> None:
+        self.ctx.obj["console"].print(result)

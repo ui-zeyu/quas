@@ -1,13 +1,25 @@
 import sys
 from base64 import b64decode
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
-import click
+import typer
 
-from quas.behinder.aes import Mode, decrypt
-from quas.behinder.base import BehinderResult
-from quas.commands.context import ContextObject
+from quas.behinder import BehinderPayload
+from quas.behinder.aes import Mode
+from quas.behinder.aes import decrypt as aes_decrypt
+from quas.behinder.xor import decrypt as xor_decrypt
+from quas.core import UseCase
+
+app = typer.Typer(
+    name="behinder", help="Behinder payload decryption tools", no_args_is_help=True
+)
+
+
+@app.callback()
+def callback() -> None: ...
 
 
 def get_ciphertext(ciphertext: str | None) -> bytes:
@@ -15,53 +27,69 @@ def get_ciphertext(ciphertext: str | None) -> bytes:
     return b64decode(ciphertext.strip())
 
 
-def get_passwords(password: Path) -> Sequence[bytes]:
+def get_passwords(password_path: Path) -> Sequence[bytes]:
     return (
-        password.read_bytes().splitlines()
-        if password.exists()
-        else [str(password).encode()]
+        password_path.read_bytes().splitlines()
+        if password_path.exists()
+        else [str(password_path).encode()]
     )
 
 
-@click.group(help="Behinder webshell tools")
-def app() -> None: ...
+@dataclass(kw_only=True)
+class BehinderUseCase(UseCase[BehinderPayload]):
+    ciphertext: Annotated[
+        str | None,
+        typer.Argument(
+            help="Base64 encoded ciphertext (optional, reads from stdin if omitted)"
+        ),
+    ] = None
+    wordlist: Annotated[
+        Path,
+        typer.Option(
+            "--wordlist",
+            "-w",
+            help="Wordlist file path or single password",
+        ),
+    ]
+
+    def effect(self, result: BehinderPayload) -> None:
+        self.ctx.obj["console"].print(result)
 
 
-@click.command(help="Decrypt Behinder AES payload with wordlist")
-@click.pass_obj
-@click.argument("ciphertext", required=False)
-@click.option("-w", "--wordlist", type=Path, required=True, help="Wordlist file path")
-@click.option(
-    "-m",
-    "--mode",
-    type=click.Choice(Mode, case_sensitive=False),
-    default=Mode.ECB,
-    help="AES mode (ECB or CBC)",
-)
-def aes(ctx: ContextObject, ciphertext: str | None, wordlist: Path, mode: Mode) -> None:
-    console = ctx["console"]
-    ct = get_ciphertext(ciphertext)
-    passwords = get_passwords(wordlist)
+@dataclass(kw_only=True)
+class AesUseCase(BehinderUseCase):
+    """Decrypt Behinder AES payload with wordlist."""
 
-    if payload := decrypt(ct, passwords, mode):
-        console.print(BehinderResult(payload))
+    GROUP = app
+    COMMAND = "aes"
 
+    mode: Annotated[
+        Mode,
+        typer.Option(
+            "--mode",
+            "-m",
+            help="AES mode (ECB or CBC)",
+        ),
+    ] = Mode.ECB
 
-@click.command(help="Decrypt Behinder XOR payload with wordlist")
-@click.pass_obj
-@click.argument("ciphertext", required=False)
-@click.option("-w", "--wordlist", type=Path, required=True, help="Wordlist file path")
-def xor(ctx: ContextObject, ciphertext: str | None, wordlist: Path) -> None:
-    from quas.behinder.base import BehinderResult
-    from quas.behinder.xor import decrypt
-
-    console = ctx["console"]
-    ct = get_ciphertext(ciphertext)
-    passwords = get_passwords(wordlist)
-
-    if payload := decrypt(ct, passwords):
-        console.print(BehinderResult(payload))
+    def execute(self) -> BehinderPayload:
+        ciphertext = get_ciphertext(self.ciphertext)
+        passwords = get_passwords(self.wordlist)
+        if result := aes_decrypt(ciphertext, passwords, self.mode):
+            return result
+        raise ValueError("No valid password found")
 
 
-app.add_command(aes)
-app.add_command(xor)
+@dataclass(kw_only=True)
+class XorUseCase(BehinderUseCase):
+    """Decrypt Behinder XOR payload with wordlist."""
+
+    GROUP = app
+    COMMAND = "xor"
+
+    def execute(self) -> BehinderPayload:
+        ciphertext = get_ciphertext(self.ciphertext)
+        passwords = get_passwords(self.wordlist)
+        if result := xor_decrypt(ciphertext, passwords):
+            return result
+        raise ValueError("No valid password found")

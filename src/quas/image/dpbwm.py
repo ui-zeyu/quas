@@ -5,8 +5,6 @@ import numpy as np
 import random2
 from PIL import Image
 
-from quas.image.base import ImageResult
-
 type ImageArray = np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]
 
 
@@ -53,7 +51,7 @@ class DoublePictureBlindWatermarkExtractor:
         watermarked: Path,
         seed: int,
         old: bool,
-    ) -> ImageResult:
+    ) -> Image.Image:
         extractor = cls(original, watermarked, seed, old)
         watermark = extractor.extract()
-        return ImageResult(watermark)
+        return watermark

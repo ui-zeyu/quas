@@ -10,7 +10,6 @@ from rich.table import Table
 from quas.analysis import english_upper
 from quas.analysis.ioc import IndexOfCoincidence
 from quas.analysis.quadgram import quadgram
-from quas.core.protocols import CommandResult
 
 
 @dataclass
@@ -31,23 +30,18 @@ class AnalysePayload:
     quadgram_score: float
     alpha_length: int
 
-
-@dataclass
-class AnalyseResult(CommandResult[AnalysePayload]):
-    data: AnalysePayload
-
     def __rich__(self) -> Group:
         group_items = []
 
         table1 = Table("Char", "Count", "Percent", "Binary", box=None, expand=True)
-        for stat in self.data.frequencies:
+        for stat in self.frequencies:
             table1.add_row(
                 stat.char, str(stat.count), f"{stat.percent:.2f}%", stat.binary
             )
         group_items.append(Panel(table1, title="Frequency Analysis"))
 
         table2 = Table("Char", "Count", "Percent", "Standard", box=None, expand=True)
-        for stat in self.data.alpha_frequencies:
+        for stat in self.alpha_frequencies:
             standard_str = (
                 f"{stat.standard_percent:.2f}%"
                 if stat.standard_percent is not None
@@ -63,14 +57,14 @@ class AnalyseResult(CommandResult[AnalysePayload]):
         )
         table3.add_row(
             "IoC",
-            f"{self.data.ioc_score:.3f}",
-            str(self.data.alpha_length),
+            f"{self.ioc_score:.3f}",
+            str(self.alpha_length),
             "0.0567 - 0.0767",
         )
         table3.add_row(
             "Quadgram",
-            f"{self.data.quadgram_score:.3f}",
-            str(self.data.alpha_length),
+            f"{self.quadgram_score:.3f}",
+            str(self.alpha_length),
             "10.0 - 11.0",
         )
         group_items.append(Panel(table3, title="Scoring Analysis"))
@@ -108,7 +102,7 @@ STANDARD_FREQUENCY: dict[str, float] = {
 }
 
 
-def perform_analysis(ciphertext: str) -> AnalyseResult:
+def perform_analysis(ciphertext: str) -> AnalysePayload:
     frequencies = []
     total_length = len(ciphertext)
     if total_length > 0:
@@ -145,13 +139,11 @@ def perform_analysis(ciphertext: str) -> AnalyseResult:
         score_ioc = 0.0
         score_quadgram = 0.0
 
-    return AnalyseResult(
-        AnalysePayload(
-            total_length=total_length,
-            frequencies=frequencies,
-            alpha_frequencies=alpha_frequencies,
-            ioc_score=score_ioc,
-            quadgram_score=score_quadgram,
-            alpha_length=alpha_length,
-        )
+    return AnalysePayload(
+        total_length=total_length,
+        frequencies=frequencies,
+        alpha_frequencies=alpha_frequencies,
+        ioc_score=score_ioc,
+        quadgram_score=score_quadgram,
+        alpha_length=alpha_length,
     )

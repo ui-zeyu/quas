@@ -3,51 +3,46 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
+from rich.console import Group
+from rich.panel import Panel
 from rich.table import Table
-
-from quas.core.protocols import CommandResult
-
-
-@dataclass
-class InspectItem:
-    index: int
-    r: int
-    g: int
-    b: int
-    a: int
 
 
 @dataclass
 class InspectPayload:
-    items: Sequence[InspectItem]
+    path: Path
+    pixels: Sequence[tuple[int, int, tuple[int, ...]]]
 
+    def __rich__(self) -> Group:
+        table = Table(title=f"Pixels from {self.path.name}")
+        table.add_column("X", justify="right", style="cyan")
+        table.add_column("Y", justify="right", style="cyan")
+        table.add_column("RGBA", justify="center", style="green")
 
-@dataclass
-class InspectResult(CommandResult[InspectPayload]):
-    data: InspectPayload
+        for x, y, rgba in self.pixels:
+            table.add_row(str(x), str(y), str(rgba))
 
-    def __rich__(self) -> Table:
-        table = Table("No.", "RGBA", box=None, highlight=True)
-        for item in self.data.items:
-            table.add_row(
-                str(item.index), f"[ {item.r}, {item.g}, {item.b}, {item.a} ]"
-            )
-        return table
+        return Group(Panel(table, expand=False))
 
 
 def perform_inspect(
-    infile: Path, x: int, y: int, stepx: int, stepy: int, count: int
-) -> InspectResult:
-    import numpy as np
-
-    img = Image.open(infile).convert("RGBA")
-    arr = np.array(img)
-    pixels = arr[y::stepy, x::stepx]
-    pixels = pixels.reshape(-1, 4)
-    display_pixels = pixels if count == 0 else pixels[:count]
-
-    items = []
-    for i, (r, g, b, a) in enumerate(display_pixels):
-        items.append(InspectItem(index=i, r=int(r), g=int(g), b=int(b), a=int(a)))
-
-    return InspectResult(InspectPayload(items=items))
+    infile: Path,
+    x: int,
+    y: int,
+    stepx: int,
+    stepy: int,
+    count: int,
+) -> InspectPayload:
+    image = Image.open(infile)
+    width, height = image.size
+    pixels = []
+    c = 0
+    for i in range(y, height, stepy):
+        for j in range(x, width, stepx):
+            if count != 0 and c >= count:
+                break
+            pixels.append((j, i, image.getpixel((j, i))))
+            c += 1
+        if count != 0 and c >= count:
+            break
+    return InspectPayload(infile, pixels)

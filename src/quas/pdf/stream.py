@@ -12,7 +12,6 @@ import pyparsing as pp
 from rich.console import Console, Group
 from rich.panel import Panel
 
-from quas.core.protocols import CommandResult
 from quas.pdf.decoders import DecoderRegistry
 
 MAX_CONTENT_LENGTH = 1000
@@ -28,14 +27,9 @@ class StreamItem:
 class StreamPayload:
     items: Sequence[StreamItem]
 
-
-@dataclass
-class StreamResult(CommandResult[StreamPayload]):
-    data: StreamPayload
-
     def __rich__(self) -> Group:
         panels = []
-        for item in self.data.items:
+        for item in self.items:
             content = item.data.decode(errors="replace")
             content_type = magic.from_buffer(item.data)
             if len(content) > MAX_CONTENT_LENGTH:
@@ -70,10 +64,10 @@ class ScanStrategy(Enum):
         infile: Path,
         strategy: ScanStrategy,
         console: Console,
-    ) -> StreamResult:
+    ) -> StreamPayload:
         scanner = strategy.to_scanner()
         items = list(scanner.scan(infile, console))
-        return StreamResult(StreamPayload(items))
+        return StreamPayload(items)
 
 
 class StreamScanner(Protocol):
