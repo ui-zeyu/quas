@@ -66,11 +66,6 @@ def version(ctx: typer.Context) -> None:
 
 def main() -> None:
     for _, module_name, _ in pkgutil.iter_modules(quas.commands.__path__):
-        try:
-            module = importlib.import_module(f"quas.commands.{module_name}")
-            if hasattr(module, "app") and isinstance(module.app, typer.Typer):
-                name = module.app.info.name or module_name
-                app.add_typer(module.app, name=name)
-        except Exception as e:
-            logging.debug(f"Skipping module {module_name}: {e}")
+        module = importlib.import_module(f"quas.commands.{module_name}")
+        app.add_typer(module.app, name=module_name)
     app()

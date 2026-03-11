@@ -4,14 +4,16 @@ import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from rich.table import Table
 
 from quas.core import UseCase
-from quas.steg.basex import TABLE_BASE32, TABLE_BASE64, BaseXPayload, basex_decode
-from quas.steg.zerowidth import ZeroWidthCrackItem
+
+if TYPE_CHECKING:
+    from quas.steg.basex import BaseXPayload
+    from quas.steg.zerowidth import ZeroWidthCrackItem
 
 app = typer.Typer(name="steg", help="Steganography tools", no_args_is_help=True)
 
@@ -21,7 +23,7 @@ def callback() -> None: ...
 
 
 @dataclass(kw_only=True)
-class Base32UseCase(UseCase[BaseXPayload]):
+class Base32UseCase(UseCase["BaseXPayload"]):
     """Extract hidden data from Base32 encoded strings."""
 
     GROUP = app
@@ -30,11 +32,13 @@ class Base32UseCase(UseCase[BaseXPayload]):
     infile: Annotated[Path, typer.Argument(help="Input file")]
 
     def execute(self) -> BaseXPayload:
+        from quas.steg.basex import TABLE_BASE32, basex_decode
+
         return basex_decode(self.infile.read_text().splitlines(), TABLE_BASE32)
 
 
 @dataclass(kw_only=True)
-class Base64UseCase(UseCase[BaseXPayload]):
+class Base64UseCase(UseCase["BaseXPayload"]):
     """Extract hidden data from Base64 encoded strings."""
 
     GROUP = app
@@ -43,11 +47,13 @@ class Base64UseCase(UseCase[BaseXPayload]):
     infile: Annotated[Path, typer.Argument(help="Input file")]
 
     def execute(self) -> BaseXPayload:
+        from quas.steg.basex import TABLE_BASE64, basex_decode
+
         return basex_decode(self.infile.read_text().splitlines(), TABLE_BASE64)
 
 
 @dataclass(kw_only=True)
-class ZeroWidthUseCase(UseCase[Iterable[ZeroWidthCrackItem]]):
+class ZeroWidthUseCase(UseCase[Iterable["ZeroWidthCrackItem"]]):
     """Decode zero-width character steganography."""
 
     GROUP = app

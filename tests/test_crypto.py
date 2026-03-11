@@ -4,10 +4,10 @@ import pytest
 
 from quas.analysis.alphabet import english_upper
 from quas.analysis.quadgram import Quadgram, quadgram
-from quas.commands import AffineUseCase as affine_command
-from quas.commands import CaesarUseCase as caesar_command
-from quas.commands import ColumnarUseCase as columnar_command
-from quas.commands import RailfenceUseCase as railfence_command
+from quas.commands.crypto import AffineUseCase as affine_command
+from quas.commands.crypto import CaesarUseCase as caesar_command
+from quas.commands.crypto import ColumnarUseCase as columnar_command
+from quas.commands.crypto import RailfenceUseCase as railfence_command
 from quas.core.context import ContextObject
 from quas.crypto.ciphers.affine import AffineCipher, AffineKey
 from quas.crypto.ciphers.caesar import CaesarCipher, CaesarKey

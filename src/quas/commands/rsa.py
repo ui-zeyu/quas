@@ -1,14 +1,13 @@
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
-from Cryptodome.Util.number import long_to_bytes
-from gmpy2 import mpz
 
 from quas.core import UseCase
-from quas.rsa import dispatcher
-from quas.rsa.base import RSAPayload
+
+if TYPE_CHECKING:
+    from quas.rsa.base import RSAPayload
 
 app = typer.Typer(
     name="rsa",
@@ -22,7 +21,7 @@ def callback() -> None: ...
 
 
 @dataclass(kw_only=True)
-class RsaUseCase(UseCase[Iterator[RSAPayload]]):
+class RsaUseCase(UseCase[Iterator["RSAPayload"]]):
     """RSA decryption and analysis tool."""
 
     GROUP = app
@@ -52,6 +51,12 @@ class RsaUseCase(UseCase[Iterator[RSAPayload]]):
     ] = 1_000_000
 
     def execute(self) -> Iterator[RSAPayload]:
+        from Cryptodome.Util.number import long_to_bytes
+        from gmpy2 import mpz
+
+        from quas.rsa import dispatcher
+        from quas.rsa.base import RSAPayload
+
         ns = [mpz(x) for x in self.ns]
         es = [mpz(x) for x in self.es]
         cs = [mpz(x) for x in self.cs]

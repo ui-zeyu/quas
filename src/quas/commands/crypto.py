@@ -1,18 +1,20 @@
 import sys
 from base64 import b64decode
 from dataclasses import dataclass
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
 from quas.core import UseCase
-from quas.crypto.affine import AffinePayload, perform_affine_crack
-from quas.crypto.analyse import AnalysePayload, perform_analysis
-from quas.crypto.caesar import CaesarPayload, perform_caesar_crack
-from quas.crypto.columnar import ColumnarPayload, perform_columnar_crack
-from quas.crypto.railfence import RailFencePayload, perform_railfence_crack
-from quas.crypto.substitute import SubPayload, perform_sub_crack
-from quas.crypto.xor import XorPayload, perform_xor_crack
+
+if TYPE_CHECKING:
+    from quas.crypto.affine import AffinePayload
+    from quas.crypto.analyse import AnalysePayload
+    from quas.crypto.caesar import CaesarPayload
+    from quas.crypto.columnar import ColumnarPayload
+    from quas.crypto.railfence import RailFencePayload
+    from quas.crypto.substitute import SubPayload
+    from quas.crypto.xor import XorPayload
 
 app = typer.Typer(
     name="crypto", help="Classical cryptography tools", no_args_is_help=True
@@ -47,19 +49,21 @@ class CryptoUseCase[O](UseCase[O]):
 
 
 @dataclass(kw_only=True)
-class AffineUseCase(CryptoUseCase[AffinePayload]):
+class AffineUseCase(CryptoUseCase["AffinePayload"]):
     """Bruteforce affine cipher with N-gram scoring."""
 
     GROUP = app
     COMMAND = "affine"
 
     def execute(self) -> AffinePayload:
+        from quas.crypto.affine import perform_affine_crack
+
         ciphertext = get_ciphertext(self.ciphertext)
         return perform_affine_crack(ciphertext, self.top)
 
 
 @dataclass(kw_only=True)
-class AnalyseUseCase(UseCase[AnalysePayload]):
+class AnalyseUseCase(UseCase["AnalysePayload"]):
     """Analyze ciphertext statistics using various scoring methods."""
 
     GROUP = app
@@ -85,6 +89,8 @@ class AnalyseUseCase(UseCase[AnalysePayload]):
     ] = False
 
     def execute(self) -> AnalysePayload:
+        from quas.crypto.analyse import perform_analysis
+
         if self.hex_flag and self.b64_flag:
             raise typer.BadParameter("Cannot specify both --hex and --base64")
 
@@ -102,43 +108,49 @@ class AnalyseUseCase(UseCase[AnalysePayload]):
 
 
 @dataclass(kw_only=True)
-class CaesarUseCase(CryptoUseCase[CaesarPayload]):
+class CaesarUseCase(CryptoUseCase["CaesarPayload"]):
     """Bruteforce caesar cipher with quadgram scoring."""
 
     GROUP = app
     COMMAND = "caesar"
 
     def execute(self) -> CaesarPayload:
+        from quas.crypto.caesar import perform_caesar_crack
+
         ciphertext = get_ciphertext(self.ciphertext)
         return perform_caesar_crack(ciphertext, self.top)
 
 
 @dataclass(kw_only=True)
-class ColumnarUseCase(CryptoUseCase[ColumnarPayload]):
+class ColumnarUseCase(CryptoUseCase["ColumnarPayload"]):
     """Crack columnar transposition cipher with quadgram scoring."""
 
     GROUP = app
     COMMAND = "columnar"
 
     def execute(self) -> ColumnarPayload:
+        from quas.crypto.columnar import perform_columnar_crack
+
         ciphertext = get_ciphertext(self.ciphertext)
         return perform_columnar_crack(ciphertext, self.top)
 
 
 @dataclass(kw_only=True)
-class RailfenceUseCase(CryptoUseCase[RailFencePayload]):
+class RailfenceUseCase(CryptoUseCase["RailFencePayload"]):
     """Crack rail fence cipher with quadgram scoring."""
 
     GROUP = app
     COMMAND = "railfence"
 
     def execute(self) -> RailFencePayload:
+        from quas.crypto.railfence import perform_railfence_crack
+
         ciphertext = get_ciphertext(self.ciphertext)
         return perform_railfence_crack(ciphertext, self.top)
 
 
 @dataclass(kw_only=True)
-class SubUseCase(CryptoUseCase[SubPayload]):
+class SubUseCase(CryptoUseCase["SubPayload"]):
     """Crack substitution cipher using hill climbing with N-gram scoring."""
 
     GROUP = app
@@ -162,6 +174,8 @@ class SubUseCase(CryptoUseCase[SubPayload]):
     ] = 10
 
     def execute(self) -> SubPayload:
+        from quas.crypto.substitute import perform_sub_crack
+
         ciphertext = get_ciphertext(self.ciphertext)
         return perform_sub_crack(
             ciphertext,
@@ -172,12 +186,14 @@ class SubUseCase(CryptoUseCase[SubPayload]):
 
 
 @dataclass(kw_only=True)
-class XorUseCase(CryptoUseCase[XorPayload]):
+class XorUseCase(CryptoUseCase["XorPayload"]):
     """Crack XOR cipher using frequency analysis."""
 
     GROUP = app
     COMMAND = "xor"
 
     def execute(self) -> XorPayload:
+        from quas.crypto.xor import perform_xor_crack
+
         ciphertext = get_ciphertext(self.ciphertext)
         return perform_xor_crack(ciphertext, self.top)

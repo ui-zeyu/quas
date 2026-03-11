@@ -1,17 +1,15 @@
 import os
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
-import toolz
 import typer
 
 from quas.core import UseCase
-from quas.crc.ihdr import IHDRPayload
-from quas.crc.ihdr import crack as ihdr_crack
-from quas.crc.zip import ZipPayload
-from quas.crc.zip import crack as zip_crack
+
+if TYPE_CHECKING:
+    from quas.crc.ihdr import IHDRPayload
+    from quas.crc.zip import ZipPayload
 
 app = typer.Typer(name="crc", help="CRC32 bruteforce tools", no_args_is_help=True)
 
@@ -21,7 +19,7 @@ def callback() -> None: ...
 
 
 @dataclass(kw_only=True)
-class IHDRUseCase(UseCase[IHDRPayload]):
+class IHDRUseCase(UseCase["IHDRPayload"]):
     """Recover PNG IHDR dimensions by bruteforcing CRC32."""
 
     GROUP = app
@@ -41,6 +39,8 @@ class IHDRUseCase(UseCase[IHDRPayload]):
     ] = 5000
 
     def execute(self) -> IHDRPayload:
+        from quas.crc.ihdr import crack as ihdr_crack
+
         data = self.infile.read_bytes()
         if results := ihdr_crack(data, self.max_width, self.max_height):
             return results
@@ -57,7 +57,7 @@ class IHDRUseCase(UseCase[IHDRPayload]):
 
 
 @dataclass(kw_only=True)
-class ZipUseCase(UseCase[ZipPayload]):
+class ZipUseCase(UseCase["ZipPayload"]):
     """Bruteforce ZIP filenames by CRC32."""
 
     GROUP = app
@@ -83,6 +83,12 @@ class ZipUseCase(UseCase[ZipPayload]):
     ] = None
 
     def execute(self) -> ZipPayload:
+        import zipfile
+
+        import toolz
+
+        from quas.crc.zip import crack as zip_crack
+
         jobs = self.jobs or os.cpu_count() or 1
         charset = self.charset
         size = self.size

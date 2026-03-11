@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
 from quas.core import UseCase
-from quas.pdf.stream import ScanStrategy, StreamPayload
+from quas.pdf.stream import ScanStrategy
+
+if TYPE_CHECKING:
+    from quas.pdf.stream import StreamPayload
 
 app = typer.Typer(name="pdf", help="PDF analysis tools", no_args_is_help=True)
 
@@ -15,7 +18,7 @@ def callback() -> None: ...
 
 
 @dataclass(kw_only=True)
-class StreamUseCase(UseCase[StreamPayload]):
+class StreamUseCase(UseCase["StreamPayload"]):
     """Extract and display all PDF streams."""
 
     GROUP = app

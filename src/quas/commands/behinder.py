@@ -3,15 +3,15 @@ from base64 import b64decode
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
-from quas.behinder import BehinderPayload
 from quas.behinder.aes import Mode
-from quas.behinder.aes import decrypt as aes_decrypt
-from quas.behinder.xor import decrypt as xor_decrypt
 from quas.core import UseCase
+
+if TYPE_CHECKING:
+    from quas.behinder import BehinderPayload
 
 app = typer.Typer(
     name="behinder", help="Behinder payload decryption tools", no_args_is_help=True
@@ -36,7 +36,7 @@ def get_passwords(password_path: Path) -> Sequence[bytes]:
 
 
 @dataclass(kw_only=True)
-class BehinderUseCase(UseCase[BehinderPayload]):
+class BehinderUseCase(UseCase["BehinderPayload"]):
     ciphertext: Annotated[
         str | None,
         typer.Argument(
@@ -73,6 +73,8 @@ class AesUseCase(BehinderUseCase):
     ] = Mode.ECB
 
     def execute(self) -> BehinderPayload:
+        from quas.behinder.aes import decrypt as aes_decrypt
+
         ciphertext = get_ciphertext(self.ciphertext)
         passwords = get_passwords(self.wordlist)
         if result := aes_decrypt(ciphertext, passwords, self.mode):
@@ -88,6 +90,8 @@ class XorUseCase(BehinderUseCase):
     COMMAND = "xor"
 
     def execute(self) -> BehinderPayload:
+        from quas.behinder.xor import decrypt as xor_decrypt
+
         ciphertext = get_ciphertext(self.ciphertext)
         passwords = get_passwords(self.wordlist)
         if result := xor_decrypt(ciphertext, passwords):

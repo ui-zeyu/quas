@@ -1,17 +1,18 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
-from PIL import Image
 
 from quas.core import UseCase
-from quas.image.dpbwm import DoublePictureBlindWatermarkExtractor
-from quas.image.extract import extract_pixels
-from quas.image.inspect import InspectPayload, perform_inspect
-from quas.image.lsbaes import LsbAesPayload, perform_lsbaes
 from quas.image.spbwm import Mode
+
+if TYPE_CHECKING:
+    from PIL import Image
+
+    from quas.image.inspect import InspectPayload
+    from quas.image.lsbaes import LsbAesPayload
 
 app = typer.Typer(name="image", help="Image analysis tools", no_args_is_help=True)
 
@@ -26,7 +27,7 @@ class ImageUseCase[O](UseCase[O]):
 
 
 @dataclass(kw_only=True)
-class ExtractUseCase(ImageUseCase[Image.Image]):
+class ExtractUseCase(ImageUseCase["Image.Image"]):
     """Extract image pixels by coordinate sampling."""
 
     GROUP = app
@@ -41,6 +42,8 @@ class ExtractUseCase(ImageUseCase[Image.Image]):
     stepy: Annotated[int, typer.Option("--stepy", help="Y step size")] = 1
 
     def execute(self) -> Image.Image:
+        from quas.image.extract import extract_pixels
+
         return extract_pixels(
             self.infile,
             self.x,
@@ -57,7 +60,7 @@ class ExtractUseCase(ImageUseCase[Image.Image]):
 
 
 @dataclass(kw_only=True)
-class InspectUseCase(ImageUseCase[InspectPayload]):
+class InspectUseCase(ImageUseCase["InspectPayload"]):
     """Inspect image pixels by coordinate sampling."""
 
     GROUP = app
@@ -77,6 +80,8 @@ class InspectUseCase(ImageUseCase[InspectPayload]):
     ] = 10
 
     def execute(self) -> InspectPayload:
+        from quas.image.inspect import perform_inspect
+
         return perform_inspect(
             self.infile,
             self.x,
@@ -91,7 +96,7 @@ class InspectUseCase(ImageUseCase[InspectPayload]):
 
 
 @dataclass(kw_only=True)
-class LsbaesUseCase(UseCase[LsbAesPayload | None]):
+class LsbaesUseCase(UseCase["LsbAesPayload | None"]):
     """Extract AES-encrypted data hidden in LSB bits and brute-force password."""
 
     GROUP = app
@@ -109,6 +114,8 @@ class LsbaesUseCase(UseCase[LsbAesPayload | None]):
     ] = None
 
     def execute(self) -> LsbAesPayload | None:
+        from quas.image.lsbaes import perform_lsbaes
+
         console = self.ctx.obj["console"]
         workers = self.workers or os.cpu_count() or 12
 
@@ -120,7 +127,7 @@ class LsbaesUseCase(UseCase[LsbAesPayload | None]):
 
 
 @dataclass(kw_only=True)
-class SpbwmUseCase(ImageUseCase[Image.Image]):
+class SpbwmUseCase(ImageUseCase["Image.Image"]):
     """Extract single image blind watermark using frequency domain analysis."""
 
     GROUP = app
@@ -157,7 +164,7 @@ class SpbwmUseCase(ImageUseCase[Image.Image]):
 
 
 @dataclass(kw_only=True)
-class DpbwmUseCase(UseCase[Image.Image]):
+class DpbwmUseCase(UseCase["Image.Image"]):
     """Extract double image blind watermark."""
 
     GROUP = app
@@ -181,6 +188,8 @@ class DpbwmUseCase(UseCase[Image.Image]):
     )
 
     def execute(self) -> Image.Image:
+        from quas.image.dpbwm import DoublePictureBlindWatermarkExtractor
+
         return DoublePictureBlindWatermarkExtractor.perform(
             self.original,
             self.watermarked,

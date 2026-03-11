@@ -1,17 +1,16 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
-import matplotlib.pyplot as plt
 import typer
 
-from quas.audio.base import AudioSignal, select_channel
-from quas.audio.dtmf import DTMFPayload, DTMFRecognizer
-from quas.audio.frequency import FreqPayload, frequency_analyzer
-from quas.audio.lsb import LsbPayload, lsb_extractor
-from quas.audio.morse import MorseDecoder, MorsePayload
-from quas.audio.visualize import AudioVisualizer
 from quas.core import UseCase
+
+if TYPE_CHECKING:
+    from quas.audio.dtmf import DTMFPayload
+    from quas.audio.frequency import FreqPayload
+    from quas.audio.lsb import LsbPayload
+    from quas.audio.morse import MorsePayload
 
 app = typer.Typer(name="audio", help="Audio analysis tools", no_args_is_help=True)
 
@@ -30,7 +29,7 @@ class AudioUseCase[O](UseCase[O]):
 
 
 @dataclass(kw_only=True)
-class DtmfUseCase(AudioUseCase[DTMFPayload]):
+class DtmfUseCase(AudioUseCase["DTMFPayload"]):
     """Audio DTMF recognition."""
 
     GROUP = app
@@ -46,6 +45,9 @@ class DtmfUseCase(AudioUseCase[DTMFPayload]):
     ] = 40
 
     def execute(self) -> DTMFPayload:
+        from quas.audio.base import AudioSignal
+        from quas.audio.dtmf import DTMFRecognizer
+
         sig = AudioSignal.read(self.infile, dtype=self.dtype)
         return DTMFRecognizer.perform(
             sig,
@@ -56,7 +58,7 @@ class DtmfUseCase(AudioUseCase[DTMFPayload]):
 
 
 @dataclass(kw_only=True)
-class FrequencyUseCase(AudioUseCase[FreqPayload]):
+class FrequencyUseCase(AudioUseCase["FreqPayload"]):
     """Audio frequency analysis."""
 
     GROUP = app
@@ -65,6 +67,9 @@ class FrequencyUseCase(AudioUseCase[FreqPayload]):
     top: Annotated[int, typer.Option("--top", "-t", help="Top N frequencies")] = 10
 
     def execute(self) -> FreqPayload:
+        from quas.audio.base import AudioSignal, select_channel
+        from quas.audio.frequency import frequency_analyzer
+
         sig = AudioSignal.read(self.infile, dtype=self.dtype)
 
         pipeline = select_channel(self.channel) | frequency_analyzer(top=self.top)
@@ -72,7 +77,7 @@ class FrequencyUseCase(AudioUseCase[FreqPayload]):
 
 
 @dataclass(kw_only=True)
-class LsbUseCase(AudioUseCase[LsbPayload]):
+class LsbUseCase(AudioUseCase["LsbPayload"]):
     """Audio LSB extraction."""
 
     GROUP = app
@@ -86,6 +91,9 @@ class LsbUseCase(AudioUseCase[LsbPayload]):
     dtype: Annotated[str, typer.Option("--dtype", help="Audio data type")] = "int16"
 
     def execute(self) -> LsbPayload:
+        from quas.audio.base import AudioSignal, select_channel
+        from quas.audio.lsb import lsb_extractor
+
         sig = AudioSignal.read(self.infile, dtype=self.dtype)
 
         pipeline = select_channel(self.channel) | lsb_extractor(
@@ -99,7 +107,7 @@ class LsbUseCase(AudioUseCase[LsbPayload]):
 
 
 @dataclass(kw_only=True)
-class MorseUseCase(AudioUseCase[MorsePayload]):
+class MorseUseCase(AudioUseCase["MorsePayload"]):
     """Audio Morse code recognition."""
 
     GROUP = app
@@ -115,6 +123,9 @@ class MorseUseCase(AudioUseCase[MorsePayload]):
     ] = 10
 
     def execute(self) -> MorsePayload:
+        from quas.audio.base import AudioSignal
+        from quas.audio.morse import MorseDecoder
+
         sig = AudioSignal.read(self.infile, dtype=self.dtype)
         return MorseDecoder.perform(
             sig,
@@ -141,6 +152,9 @@ class VisualizeUseCase(AudioUseCase[None]):
     ] = 20
 
     def execute(self) -> None:
+        from quas.audio.base import AudioSignal, select_channel
+        from quas.audio.visualize import AudioVisualizer
+
         sig = AudioSignal.read(self.infile, dtype=self.dtype)
 
         pipeline = select_channel(self.channel) | AudioVisualizer(
@@ -149,4 +163,6 @@ class VisualizeUseCase(AudioUseCase[None]):
         pipeline(sig)
 
     def effect(self, result: None) -> None:
+        import matplotlib.pyplot as plt
+
         plt.show()
