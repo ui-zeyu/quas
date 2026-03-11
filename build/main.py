@@ -1,4 +1,4 @@
-from quas import main
+from quas import app
 
 if __name__ == "__main__":
-    main()
+    app()

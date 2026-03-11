@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from quas.analysis.alphabet import Alphabet
-from quas.commands import SubUseCase as substitute_command
+from quas.commands.crypto import SubUseCase as substitute_command
 from quas.core.context import ContextObject
 from quas.crypto.base import Result
 from quas.crypto.ciphers.substitute import SubstituteKey, SubstitutionCipher

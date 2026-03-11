@@ -4,16 +4,39 @@ import pkgutil
 from importlib import metadata
 from typing import Annotated
 
+import click
 import typer
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
-
-import quas.commands
+from typer.core import TyperGroup
+from typer.main import get_command
 
 from .context import ContextObject
 
+
+class LazyGroup(TyperGroup):
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        import quas.commands
+
+        commands = super().list_commands(ctx)
+        for _, name, _ in pkgutil.iter_modules(quas.commands.__path__):
+            commands.append(name)
+        return sorted(commands)
+
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+        if cmd := super().get_command(ctx, cmd_name):
+            return cmd
+
+        try:
+            module = importlib.import_module(f"quas.commands.{cmd_name}")
+            return get_command(module.app)
+        except ImportError, AttributeError:
+            return None
+
+
 app = typer.Typer(
+    cls=LazyGroup,
     help="Quas - Steganography and cryptanalysis CLI toolkit",
     no_args_is_help=True,
     rich_markup_mode="rich",
@@ -59,13 +82,6 @@ def callback(
     ctx.obj = ContextObject(console=console, debug=debug)
 
 
-@app.command()
+@app.command(help="Show the version of Quas")
 def version(ctx: typer.Context) -> None:
     ctx.obj["console"].print(metadata.version("quas"))
-
-
-def main() -> None:
-    for _, module_name, _ in pkgutil.iter_modules(quas.commands.__path__):
-        module = importlib.import_module(f"quas.commands.{module_name}")
-        app.add_typer(module.app, name=module_name)
-    app()

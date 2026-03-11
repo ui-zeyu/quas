@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
-quas = "quas:main"
+quas = "quas:app"
 
 [tool.ruff]
 target-version = "py314"

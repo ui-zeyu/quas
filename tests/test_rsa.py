@@ -5,7 +5,7 @@ import pytest
 from gmpy2 import mpz
 from rich.console import Console
 
-from quas.commands import RsaUseCase as rsa_command
+from quas.commands.rsa import RsaUseCase as rsa_command
 from quas.core.context import ContextObject
 from quas.rsa import (
     common_modulus,
